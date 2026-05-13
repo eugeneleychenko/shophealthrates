@@ -507,5 +507,34 @@ $(document).ready(function(e){
 });
 
 </script>
+
+<!-- Connect Streams Module -->
+<div class="g3cm_holder" data-module="1966" data-showoninit="false" data-conversionid="" data-destination="" data-destinationext="" data-followup="" style="display:none;">Thank you for your inquiry. A representative will be in contact with you shortly.</div>
+
+<script type="text/javascript">
+window.g3cm = window.g3cm || function () { (g3cm.q = g3cm.q || []).push(arguments) };
+g3cm('loadjquery', 'false');
+g3cm('send', 'init');
+
+(function() {
+    var shown = sessionStorage.getItem('cs_shown');
+    if (shown) return;
+
+    function showPopup() {
+        if (sessionStorage.getItem('cs_shown')) return;
+        sessionStorage.setItem('cs_shown', '1');
+        g3cm('show');
+    }
+
+    // 10-second timer
+    setTimeout(showPopup, 10000);
+
+    // Exit intent (mouse leaves viewport toward top)
+    document.documentElement.addEventListener('mouseleave', function(e) {
+        if (e.clientY <= 0) showPopup();
+    });
+})();
+</script>
+<script src="https://api.connectstreams.com/js/connectme-v3.min.js" async="async"></script>
 </body>
 </html>
