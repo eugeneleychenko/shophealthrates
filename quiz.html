@@ -1,0 +1,912 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<link rel="shortcut icon" type="image/x-icon" href="images/favicon.webp">
+<title>LeoSource Insurance Agency</title>
+
+<!------css link---------->
+<link rel="stylesheet" type="text/css" href="css/quiz.css">
+
+<link rel="preload" href="css/Inter-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="css/PublicSans-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="css/PublicSans-Medium.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="css/PublicSans-SemiBold.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="css/PublicSans-Bold.woff2" as="font" type="font/woff2" crossorigin>
+
+</head>
+
+<body>
+
+<!----------Header----------->
+<div class="header">
+    <div class="container">
+		<div class="header-row"> 
+        	<img src="images/logo.webp" alt="logo" class="logo">
+                            
+            <a href="tel:(800) 758-1590" class="header-right">
+                <div class="header-call-icon">
+                    <img src="images/header-call.webp" width="50" height="50" alt="icn" class="header-call animated tada">
+                </div>
+                <div class="header-right-content">
+                    <p class="header-right-txt1">Speak with a Licensed Advisor</p>
+                    <p class="header-right-txt2">(800) 758-1590</p>
+                    <p class="header-right-txt3">12 Agents Available Now</p>
+                </div>
+            </a>                
+            
+        </div>
+    </div>
+</div>
+
+<!------Main-Section------->
+<div class="main_section">
+	<div class="container">
+    	
+        <div class="progress-container">
+        	<div class="progress-count-row">
+            	<p class="progress-count-text1">Insurance Assessment</p>
+                <p class="progress-count-text2">Step <span class="step-count-no">1</span></p>
+            </div>
+            <div class="progressbar">
+                <div class="prgress-1" style="width:20%;"></div>
+            </div>
+        </div>
+        
+        <div class="screen active" id="step-1" data-wdth="20">
+            <div class="inner_section">
+            	<p class="step_subheading">Eligibility</p>
+            	<h2 class="step_title">What age group are you in?</h2>
+                
+                <div class="option-box">
+                    <label class="option-col" onclick="show('step-2')">
+                        <input type="radio" name="eligible">
+                         <div class="desc-opt">
+                         	<div class="desc-opt-left">
+                                <span class="opt-rad"></span>
+                                <div class="desc-opt-content">
+                                	<p>Under 65</p>
+                                    <span>You can access all insurance plans</span>
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+                    <label class="option-col" onclick="show('step-2')">
+                        <input type="radio" name="eligible">
+                         <div class="desc-opt">
+                         	<div class="desc-opt-left">
+                                <span class="opt-rad"></span>
+                                <div class="desc-opt-content">
+                                	<p>65 or older</p>
+                                    <span>Also choose this if turning 65 soon</span>
+                                </div>
+                            </div>
+                        </div>
+                    </label>  
+				</div> 
+                
+                <a href="javascript:void(0)" class="btn-back" onclick="goBack()"><img src="images/back-arrow.webp" alt="">Back</a>
+			</div>
+        </div>
+        
+        <div class="screen" id="step-2" data-wdth="30">
+            <div class="inner_section">
+            	<p class="step_subheading">Timing</p>
+            	<h2 class="step_title">When do you need coverage?</h2>
+                
+                <div class="option-box">
+                    <label class="option-col" onclick="show('step-3')">
+                        <input type="radio" name="time">
+                         <div class="desc-opt">
+                         	<div class="desc-opt-left">
+                                <span class="opt-rad"></span>
+                                <div class="desc-opt-content">
+                                	<p>Immediately</p>
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+                    <label class="option-col" onclick="show('step-3')">
+                        <input type="radio" name="time">
+                         <div class="desc-opt">
+                         	<div class="desc-opt-left">
+                                <span class="opt-rad"></span>
+                                <div class="desc-opt-content">
+                                	<p>Within 2 Weeks</p>
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+                    <label class="option-col" onclick="show('step-3')">
+                        <input type="radio" name="time">
+                         <div class="desc-opt">
+                         	<div class="desc-opt-left">
+                                <span class="opt-rad"></span>
+                                <div class="desc-opt-content">
+                                	<p>I'm not sure yet</p>
+                                </div>
+                            </div>
+                        </div>
+                    </label> 
+				</div> 
+                
+                <a href="javascript:void(0)" class="btn-back" onclick="goBack()"><img src="images/back-arrow.webp" alt="">Back</a>
+			</div>
+        </div>
+        
+        <div class="screen" id="step-3" data-wdth="40">
+            <div class="inner_section">
+            	<p class="step_subheading">Duration</p>
+            	<h2 class="step_title">How long will you need coverage?</h2>
+                
+                <div class="option-box">
+                    <label class="option-col" onclick="show('step-4')">
+                        <input type="radio" name="duration">
+                         <div class="desc-opt">
+                         	<div class="desc-opt-left">
+                                <span class="opt-rad"></span>
+                                <div class="desc-opt-content">
+                                	<p>A year or more</p>
+                                </div>
+                            </div>
+                            <p class="duration-opt-text duration-blue-bg">Long-term</p>
+                        </div>
+                    </label>
+                    <label class="option-col" onclick="show('step-4')">
+                        <input type="radio" name="duration">
+                         <div class="desc-opt">
+                         	<div class="desc-opt-left">
+                                <span class="opt-rad"></span>
+                                <div class="desc-opt-content">
+                                	<p>Less than a year</p>
+                                </div>
+                            </div>
+                            <p class="duration-opt-text duration-yellow-bg">Short-term</p>
+                        </div>
+                    </label> 
+                    <label class="option-col" onclick="show('step-4')">
+                        <input type="radio" name="duration">
+                         <div class="desc-opt">
+                         	<div class="desc-opt-left">
+                                <span class="opt-rad"></span>
+                                <div class="desc-opt-content">
+                                	<p>Not sure</p>
+                                    <span>We'll show plans for both periods</span>
+                                </div>
+                            </div>
+                        </div>
+                    </label> 
+				</div> 
+                
+                <a href="javascript:void(0)" class="btn-back" onclick="goBack()"><img src="images/back-arrow.webp" alt="">Back</a>
+			</div>
+        </div>
+        
+        <div class="screen" id="step-4" data-wdth="50">
+            <div class="inner_section">            	                                
+                <p class="step_subheading">Life Event</p>
+            	<h2 class="step_title">What brings you here today?</h2>
+                <p class="select-all-apply">* Select all that apply</p>
+                
+                <div class="option-box">
+                    <label class="option-col">
+                        <input type="checkbox" name="lifevent">
+                         <div class="desc-opt">
+                         	<div class="desc-opt-left">
+                                <span class="opt-rad"></span>
+                                <p>Lost my coverage</p>
+                            </div>
+                        </div>
+                    </label>                    
+                    <label class="option-col">
+                        <input type="checkbox" name="lifevent">
+                         <div class="desc-opt">
+                         	<div class="desc-opt-left">
+                                <span class="opt-rad"></span>
+                                <p>Started or left a job</p>
+                            </div>
+                        </div>
+                    </label>                    
+                    <label class="option-col">
+                        <input type="checkbox" name="lifevent">
+                         <div class="desc-opt">
+                         	<div class="desc-opt-left">
+                                <span class="opt-rad"></span>
+                                <p>Moved to a new state</p>
+                            </div>
+                        </div>
+                    </label> 
+                    <label class="option-col">
+                        <input type="checkbox" name="lifevent">
+                         <div class="desc-opt">
+                         	<div class="desc-opt-left">
+                                <span class="opt-rad"></span>
+                                <p>Changes with my family</p>
+                            </div>
+                        </div>
+                    </label>
+                    <label class="option-col">
+                        <input type="checkbox" name="lifevent">
+                         <div class="desc-opt">
+                         	<div class="desc-opt-left">
+                                <span class="opt-rad"></span>
+                                <p>None of these apply</p>
+                            </div>
+                        </div>
+                    </label> 
+				</div>
+                                        
+                <div class="button-col">
+                	<p class="btn-secure-text"><img src="images/lock-icon.webp" alt="icon">Secure 256-Bit Encrypted Connection</p>
+                	<button class="common-btn" onclick="show('step-5')">Continue <img src="images/btn-arrow.webp" alt="icon"></button>
+                </div>
+                <a href="javascript:void(0)" class="btn-back" onclick="goBack()"><img src="images/back-arrow.webp" alt="">Back</a>                
+            </div>
+        </div>
+        
+        <div class="screen" id="step-5" data-wdth="60">
+            <div class="inner_section">
+            	<p class="step_subheading">Household</p>
+            	<h2 class="step_title">What’s your household size?</h2>
+                
+                <div class="option-box house-size-option">
+                    <label class="option-col" onclick="show('step-6')">
+                        <input type="radio" name="house">
+                         <div class="desc-opt">
+                         	<div class="desc-opt-left">
+                                <div class="desc-opt-content">
+                                	<p>1</p>
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+                    <label class="option-col" onclick="show('step-6')">
+                        <input type="radio" name="house">
+                         <div class="desc-opt">
+                         	<div class="desc-opt-left">
+                                <div class="desc-opt-content">
+                                	<p>2</p>
+                                </div>
+                            </div>
+                        </div>
+                    </label> 
+                    <label class="option-col" onclick="show('step-6')">
+                        <input type="radio" name="house">
+                         <div class="desc-opt">
+                         	<div class="desc-opt-left">
+                                <div class="desc-opt-content">
+                                	<p>3</p>
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+                    <label class="option-col" onclick="show('step-6')">
+                        <input type="radio" name="house">
+                         <div class="desc-opt">
+                         	<div class="desc-opt-left">
+                                <div class="desc-opt-content">
+                                	<p>4</p>
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+                    <label class="option-col" onclick="show('step-6')">
+                        <input type="radio" name="house">
+                         <div class="desc-opt">
+                         	<div class="desc-opt-left">
+                                <div class="desc-opt-content">
+                                	<p>5 or more</p>
+                                </div>
+                            </div>
+                        </div>
+                    </label> 
+				</div> 
+                
+                <a href="javascript:void(0)" class="btn-back" onclick="goBack()"><img src="images/back-arrow.webp" alt="">Back</a>
+			</div>
+        </div>
+        
+        <div class="screen" id="step-6" data-wdth="70">
+            <div class="inner_section">
+            	<p class="step_subheading">Medical Usage</p>
+            	<h2 class="step_title">How often do you visit the doctor?</h2>
+                
+                <div class="option-box">
+                    <label class="option-col" onclick="show('step-7')">
+                        <input type="radio" name="doctor">
+                         <div class="desc-opt">
+                         	<div class="desc-opt-left">
+                                <span class="opt-rad"></span>
+                                <div class="desc-opt-content">
+                                	<p>About 3 times a year</p>
+                                    <span>Routine check-ups only</span>
+                                </div>
+                            </div>
+                            <p class="duration-opt-text duration-blue-bg">Low usage</p>
+                        </div>
+                    </label>
+                    <label class="option-col" onclick="show('step-7')">
+                        <input type="radio" name="doctor">
+                         <div class="desc-opt">
+                         	<div class="desc-opt-left">
+                                <span class="opt-rad"></span>
+                                <div class="desc-opt-content">
+                                	<p>About 8 times a year</p>
+                                    <span>Regular ongoing care</span>
+                                </div>
+                            </div>
+                            <p class="duration-opt-text duration-yellow-bg">Mid usage</p>
+                        </div>
+                    </label> 
+                    <label class="option-col" onclick="show('step-7')">
+                        <input type="radio" name="doctor">
+                         <div class="desc-opt">
+                         	<div class="desc-opt-left">
+                                <span class="opt-rad"></span>
+                                <div class="desc-opt-content">
+                                	<p>More than 8 times a year</p>
+                                    <span>Frequent or specialist visits</span>
+                                </div>
+                            </div>
+                            <p class="duration-opt-text duration-orange-bg">High usage</p>
+                        </div>
+                    </label> 
+				</div> 
+                
+                <a href="javascript:void(0)" class="btn-back" onclick="goBack()"><img src="images/back-arrow.webp" alt="">Back</a>
+			</div>
+        </div>
+        
+        <div class="screen" id="step-7" data-wdth="80">
+            <div class="inner_section">            	                                
+                <p class="step_subheading">income</p>
+            	<h2 class="step_title">Household gross monthly income?</h2>
+                
+                <div class="form-field-box">
+                    <div class="formfield">                        
+                        <label>Monthly Income</label>
+                        <input type="tel" class="input-fld monthly-income-field" placeholder="Enter monthly Income" id="income">
+                    </div>
+                </div>
+                                        
+                <div class="button-col">
+                	<p class="btn-secure-text"><img src="images/lock-icon.webp" alt="icon">Secure 256-Bit Encrypted Connection</p>
+                	<button class="common-btn" onclick="show('step-8')">Continue <img src="images/btn-arrow.webp" alt="icon"></button>
+                </div>
+                <a href="javascript:void(0)" class="btn-back" onclick="goBack()"><img src="images/back-arrow.webp" alt="">Back</a>                
+            </div>
+        </div>
+                
+        <div class="screen" id="step-8" data-wdth="90">
+            <div class="inner_section">
+            	<p class="step_subheading">About You</p>
+            	<h2 class="step_title">Now let's find you the best prices!</h2>
+                
+                <div class="option-box">
+                    <label class="option-col">
+                        <input type="radio" name="gender">
+                         <div class="desc-opt">
+                         	<div class="desc-opt-left">
+                                <span class="opt-rad"></span>
+                                <div class="desc-opt-content">
+                                	<p>Male</p>
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+                    <label class="option-col">
+                        <input type="radio" name="gender">
+                         <div class="desc-opt">
+                         	<div class="desc-opt-left">
+                                <span class="opt-rad"></span>
+                                <div class="desc-opt-content">
+                                	<p>Female</p>
+                                </div>
+                            </div>
+                        </div>
+                    </label>  
+				</div> 
+                
+                <div class="form-field-box">
+                    <div class="formfield">                        
+                        <label>Date Of Birth</label>
+                        <input type="tel" class="input-fld birthfield" placeholder="MM / DD / YYYY" id="birthDateTime">
+                    </div>
+                </div>
+                                        
+                <div class="button-col">
+                	<p class="btn-secure-text"><img src="images/lock-icon.webp" alt="icon">Secure 256-Bit Encrypted Connection</p>
+                	<button class="common-btn" onclick="show('step-9')">Continue <img src="images/btn-arrow.webp" alt="icon"></button>
+                </div>
+                <a href="javascript:void(0)" class="btn-back" onclick="goBack()"><img src="images/back-arrow.webp" alt="">Back</a> 
+			</div>
+        </div>
+        
+        <div class="screen" id="step-9" data-wdth="95">
+            <div class="inner_section">
+            	<p class="step_subheading">About You</p>
+            	<h2 class="step_title">Do you use tobacco products?</h2>
+                
+                <div class="option-box">
+                    <label class="option-col" onclick="show('step-10')">
+                        <input type="radio" name="products">
+                         <div class="desc-opt">
+                         	<div class="desc-opt-left">
+                                <span class="opt-rad"></span>
+                                <div class="desc-opt-content">
+                                	<p>No, I Don’t</p>
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+                    <label class="option-col" onclick="show('step-10')">
+                        <input type="radio" name="products">
+                         <div class="desc-opt">
+                         	<div class="desc-opt-left">
+                                <span class="opt-rad"></span>
+                                <div class="desc-opt-content">
+                                	<p>Yes, I Do</p>
+                                </div>
+                            </div>
+                        </div>
+                    </label>  
+				</div>
+                                                        
+                <a href="javascript:void(0)" class="btn-back" onclick="goBack()"><img src="images/back-arrow.webp" alt="">Back</a> 
+			</div>
+        </div>
+        
+        <div class="screen" id="step-10" data-wdth="100">
+            <div class="inner_section">
+            	<p class="step_subheading">YOUR PROFILE</p>
+            	<h2 class="step_title">Where should we send your free quotes?</h2>
+                
+                <form id="leadForm" action="thank-you.html" method="get" onsubmit="return submitLead(event)">
+                
+                <div class="form-field-box">
+                    <div class="field_row">
+                        <div class="field show">
+                            <label>First Name</label>
+                            <input type="text" id="firstName" placeholder="First Name" class="input-fld">
+                        </div>
+                
+                        <div class="field show">
+                            <label>Last Name</label>
+                            <input type="text" id="lastName" placeholder="Last Name" class="input-fld">
+                        </div>
+                    </div>
+    
+                    <div class="field" id="emailField">
+                        <label>Email Address</label>
+                        <input type="email" id="email" placeholder="test@gmail.com" class="input-fld">
+                    </div>
+                
+                    <div class="field" id="phoneField">
+                        <label>Phone Number</label>
+                        <input type="tel" id="phone" placeholder="(555) 000-0000" class="input-fld">
+                    </div>
+                
+                    <div class="field" id="addressField">
+                        <label>Street Address</label>
+                        <input type="text" id="address" placeholder="123 Main St" class="input-fld">
+                    </div>
+                </div>
+                
+                <p class="disclaimer">By submitting your information and clicking the button above, you represent that you are at least 18 years old and provide your express written consent to be contacted by Leo Source Insurance and/or its licensed partner agents at the number and email you provided (including any wireless number) regarding health insurance products, through the use of automated telephone dialing systems, pre-recorded messages, and/or text messages. Message and data rates may apply. Your consent is not a condition of purchase. This program is subject to our  <a href="privacy.html" target="_blank">Privacy Policy</a> and <a href="term.html" target="_blank">Terms of Use</a>.</p>
+                
+                
+				<div class="button-col">
+                	<p class="btn-secure-text"><img src="images/lock-icon.webp" alt="icon">Secure 256-Bit Encrypted Connection</p>
+                	<button type="submit" class="common-btn" id="submitBtn" disabled>Show Your Pricing <img src="images/btn-arrow.webp" alt="icon"></button>
+                </div>
+                
+                </form>
+                                                         
+                <a href="javascript:void(0)" class="btn-back" onclick="goBack()"><img src="images/back-arrow.webp" alt="">Back</a> 
+                
+                <p class="disclaimer disclaimer-2">Any plan prices and details shown are our initial estimates. To buy a plan, you must complete an application process with one of our partners that is licensed to sell insurance products and that will provide you more definitive information on plan prices, benefits, availability, and other details. You may also call to inquire and/or purchase. You may be directed to a licensed sales agent who can answer your questions and provide information about individual health insurance plans. Agents are not connected with or endorsed by the U.S. government.</p>
+			</div>
+        </div>
+          
+    </div>
+</div>
+
+
+
+
+<!--------Script------------->
+<script type="text/javascript" src="js/jquery-3.6.0.min.js"></script>
+<script type="text/javascript">
+
+
+// =========================
+// STEP SHOW FUNCTION
+// =========================
+
+let screenHistory = [];
+
+function show(id){
+	
+	setTimeout(() => {
+
+  const current = document.querySelector('.screen.active');
+  
+  if(current && current.id !== id){
+      screenHistory.push(current.id); // save history
+  }
+
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  const el = document.getElementById(id);
+
+  if(el){
+    el.classList.add('active');
+	
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+
+    progress();
+	
+		
+    // ✅ show/hide back button
+    toggleBackButton();
+  }
+  
+  
+  }, 300); // ⏱ delay here
+}
+
+
+
+function goBack(){
+
+    if(screenHistory.length > 0){
+        const prevId = screenHistory.pop();
+
+        document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+        const el = document.getElementById(prevId);
+
+        if(el){
+            el.classList.add('active');
+
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+
+            progress();
+            
+            toggleBackButton();
+        }
+    }
+}
+
+
+function toggleBackButton(){
+    const backBtn = document.querySelector('.btn-back');
+
+    if(screenHistory.length > 0){
+        backBtn.style.display = 'flex';
+    } else {
+        backBtn.style.display = 'none';
+    }
+}
+
+
+// ADD THIS HERE (VERY END OF FILE)
+document.addEventListener("DOMContentLoaded", function () {
+    toggleBackButton(); // hide button on step-1
+});
+
+
+// =========================
+// TOP PROGRESS BAR
+// =========================
+
+function progress(){
+    const activeStep = document.querySelector('.screen.active');
+    if(activeStep){
+        const progressVal = activeStep.getAttribute('data-wdth');
+        document.querySelector(".prgress-1").style.width = progressVal + "%";
+		
+		// GET CURRENT STEP NUMBER
+        const stepId = activeStep.id;      // example: step-3
+        const stepNo = stepId.split('-')[1];
+
+        // UPDATE STEP COUNT TEXT
+        document.querySelector(".step-count-no").innerText = stepNo;
+			
+    }
+}
+
+
+
+// =========================
+// NONE APPLY CHECKBOX
+// =========================
+
+document.addEventListener("DOMContentLoaded", function () {
+
+    const checkboxes = document.querySelectorAll('input[name="lifevent"]');
+
+    if(checkboxes.length === 0) return;
+	
+	// none apply posotion
+    const noneApply = checkboxes[4];
+
+    checkboxes.forEach((checkbox, index) => {
+
+        checkbox.addEventListener("change", function () {
+
+            // none apply checked
+            if(index === 4 && this.checked){
+
+                checkboxes.forEach((cb, i) => {
+
+                    if(i !== 4){
+                        cb.checked = false;
+                    }
+
+                });
+            }
+
+            // other checked
+            if(index !== 4 && this.checked){
+                noneApply.checked = false;
+            }
+
+        });
+
+    });
+
+});
+
+
+
+//PHONE_NUMBER
+jQuery(document).on("input", ".phone", function () {
+    let number = jQuery(this).val().replace(/\D/g, "");   // remove non-digits
+
+    // limit 10 digits
+    if (number.length > 10) number = number.slice(0, 10);
+
+    // format XXX-XXX-XXXX
+    let formatted = number;
+    if (number.length > 6) {
+        formatted = number.replace(/(\d{3})(\d{3})(\d+)/, "$1-$2-$3");
+    } else if (number.length > 3) {
+        formatted = number.replace(/(\d{3})(\d+)/, "$1-$2");
+    }
+
+    jQuery(this).val(formatted);
+});
+
+
+const input = document.getElementById("birthDateTime");
+
+input.addEventListener("input", () => {
+  let raw = input.value.replace(/[^0-9APMapm]/g, "").toUpperCase();
+
+  let numbers = raw.match(/\d+/g) || [];
+  let letters = raw.match(/[APM]+/g) || [];
+
+  let datePart = numbers[0] || "";
+  let timePart = numbers[1] || "";
+
+  // ---- DATE ----
+  let mm = datePart.substring(0, 2);
+  let dd = datePart.substring(2, 4);
+  let yyyy = datePart.substring(4, 8);
+
+  if (mm && parseInt(mm) > 12) mm = "12";
+  if (dd && parseInt(dd) > 31) dd = "31";
+
+  let formatted = "";
+  if (mm) formatted += mm;
+  if (dd) formatted += " / " + dd;
+  if (yyyy) formatted += " / " + yyyy;
+
+  // ---- TIME ----
+  let hh = timePart.substring(0, 2);
+  let min = timePart.substring(2, 4);
+
+  if (hh && parseInt(hh) > 12) hh = "12";
+  if (min && parseInt(min) > 59) min = "59";
+
+  if (hh) formatted += " " + hh;
+  if (min) formatted += ":" + min;
+
+  // ---- AM / PM ----
+  if (letters[0]) {
+    formatted += letters[0].startsWith("P") ? " PM" : " AM";
+  }
+
+  input.value = formatted.trim();
+});
+
+
+</script>
+
+
+<script>
+
+const firstName = document.getElementById("firstName");
+const lastName = document.getElementById("lastName");
+
+const email = document.getElementById("email");
+const phone = document.getElementById("phone");
+
+const emailField = document.getElementById("emailField");
+const phoneField = document.getElementById("phoneField");
+
+const address = document.getElementById("address");
+const submitBtn = document.getElementById("submitBtn");
+
+function checkForm(){
+
+    const first  = firstName.value.trim() !== "";
+    const last   = lastName.value.trim() !== "";
+    const mail   = email.value.trim() !== "";
+    const phoneV = phone.value.trim() !== "";
+    const addr   = address.value.trim() !== "";
+
+    // SHOW FIELDS
+    if(first && last){
+        emailField.classList.add("show");
+    }
+
+    if(mail){
+        phoneField.classList.add("show");
+    }
+
+    if(phoneV){
+        addressField.classList.add("show");
+    }
+
+    // ENABLE BUTTON
+     submitBtn.disabled = !(first && last && mail && phoneV && addr);
+
+}
+
+firstName.addEventListener("input", checkForm);
+lastName.addEventListener("input", checkForm);
+email.addEventListener("input", checkForm);
+phone.addEventListener("input", checkForm);
+address.addEventListener("input", checkForm);
+
+
+//PHONE FIELD
+
+phone.addEventListener("input", function(e){
+
+    let numbers = e.target.value.replace(/\D/g, "");
+
+    numbers = numbers.substring(0,10);
+
+    let formatted = "";
+
+    if(numbers.length > 0){
+        formatted = "(" + numbers.substring(0,3);
+    }
+
+    if(numbers.length >= 4){
+        formatted += ") " + numbers.substring(3,6);
+    }
+
+    if(numbers.length >= 7){
+        formatted += "-" + numbers.substring(6,10);
+    }
+
+    e.target.value = formatted;
+
+});
+</script>
+
+<script>
+// =============================
+// BOBERDOO API LEAD SUBMISSION
+// =============================
+var API_KEY = "b04f5463d194e2227fe5ae4cbf9e586da2c2cb503601ae97bbf908c7d3e6c917";
+function submitLead(e) {
+    e.preventDefault();
+
+    var btn = document.getElementById("submitBtn");
+    btn.disabled = true;
+    btn.textContent = "Submitting...";
+
+    // Get zip from URL params (passed from index.html)
+    var urlParams = new URLSearchParams(window.location.search);
+    var zip = urlParams.get("zip") || "60610";
+
+    // Get DOB from step 8 — convert "MM / DD / YYYY" to "MM/DD/YYYY"
+    var dobRaw = document.getElementById("birthDateTime").value.trim();
+    var dob = dobRaw.replace(/\s*\/\s*/g, "/");
+
+    // Get phone digits only
+    var phoneVal = document.getElementById("phone").value.replace(/\D/g, "");
+
+    // Get gender from step 8
+    var genderInputs = document.querySelectorAll('input[name="gender"]');
+    var gender = "";
+    genderInputs.forEach(function(inp, i) {
+        if (inp.checked) gender = i === 0 ? "Male" : "Female";
+    });
+
+    var payload = {
+        Request: {
+            Format: "JSON",
+            Mode: "full",
+            Key: API_KEY,
+            API_Action: "pingPostLead",
+            TYPE: "33",
+            SRC: "shophealthratescomenew",
+            IP_Address: "75.2.92.149",
+            Landing_Page: window.location.href,
+            First_Name: document.getElementById("firstName").value.trim(),
+            Last_Name: document.getElementById("lastName").value.trim(),
+            Email: document.getElementById("email").value.trim(),
+            Primary_Phone: phoneVal,
+            Address: document.getElementById("address").value.trim(),
+            Zip: zip,
+            DOB: dob
+        }
+    };
+
+    console.log("Submitting lead payload:", JSON.stringify(payload, null, 2));
+
+    // Create hidden iframe to receive the POST response (avoids CORS)
+    var iframeName = "leadPostFrame_" + Date.now();
+    var iframe = document.createElement("iframe");
+    iframe.name = iframeName;
+    iframe.style.display = "none";
+    document.body.appendChild(iframe);
+
+    // Build a hidden form targeting the iframe
+    var form = document.createElement("form");
+    form.method = "POST";
+    form.action = "https://leosourceinsurance.leadportal.com/new_api/api.php";
+    form.target = iframeName;
+    form.style.display = "none";
+
+    var fields = {
+        Format: "JSON",
+        Mode: payload.Request.Mode,
+        Key: payload.Request.Key,
+        API_Action: payload.Request.API_Action,
+        TYPE: payload.Request.TYPE,
+        SRC: payload.Request.SRC,
+        IP_Address: payload.Request.IP_Address,
+        Landing_Page: payload.Request.Landing_Page,
+        First_Name: payload.Request.First_Name,
+        Last_Name: payload.Request.Last_Name,
+        Email: payload.Request.Email,
+        Primary_Phone: payload.Request.Primary_Phone,
+        Address: payload.Request.Address,
+        Zip: payload.Request.Zip,
+        DOB: payload.Request.DOB
+    };
+
+    for (var key in fields) {
+        var input = document.createElement("input");
+        input.type = "hidden";
+        input.name = key;
+        input.value = fields[key];
+        form.appendChild(input);
+    }
+
+    document.body.appendChild(form);
+    form.submit();
+
+    // Redirect to thank-you page after brief delay for the POST to fire
+    setTimeout(function() {
+        window.location.href = "thank-you.html";
+    }, 1500);
+
+    return false;
+}
+</script>
+
+</body>
+</html>
