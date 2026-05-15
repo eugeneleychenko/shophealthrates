@@ -23,6 +23,24 @@
 
 <body>
 
+<!-- Capture UTM/tracking params from ad click into sessionStorage -->
+<script>
+(function() {
+    if (!sessionStorage.getItem('landing_url')) {
+        var params = new URLSearchParams(window.location.search);
+        if (params.has('gclid') || params.has('cpid') || params.has('utm_source') || params.has('wbraid') || params.has('gbraid')) {
+            sessionStorage.setItem('landing_url', window.location.href);
+            params.forEach(function(value, key) {
+                sessionStorage.setItem('utm_' + key, value);
+            });
+        }
+    }
+})();
+</script>
+
+<!-- ClickFlare non-redirect tracking script -->
+<script>!function(){"use strict";var t="lp_ref",n="cpid",e="lpurl",c="https://flarehitlog.com",r="(?<domain>http(?:s?)://[^/]*)".concat("/cf/click"),a="(?:(?:/(?<cta>[1-9][0-9]*)/?)|(?:/))?",i="^".concat(r).concat(a).concat("(?:$|(\\\\?.*))"),o='javascript:window.clickflare.l="(?<original_link>'.concat(r).concat(a,'("|(\\\\?[^"]*"))).*'),s=function(){return new RegExp(i,"")},u=function(){return new RegExp(o,"")};function l(t){var n=function(t){return t.replace(s(),(function(t){for(var n=[],e=1;e<arguments.length;e++)n[e-1]=arguments[e];var r=n[n.length-1].domain;return t.replace(r,c)}))}(t);return'javascript:window.clickflare.l="'.concat(n,'"; void 0;')}function d(t,n){if(n&&t&&n.apply(document,[t]),/loaded|interactive|complete/.test(document.readyState))for(var e=0,c=document.links.length;e<c;e++)if(s().test(document.links[e].href)){var r=document.links[e];window.clickflare.links_replaced.has(r)||(r.href=l(r.href),window.clickflare.links_replaced.add(r))}}var f,h,m,p;!function(r,a){var i=document.onreadystatechange;window.clickflare||(window.clickflare={listeners:{},customParams:{},links_replaced:new Set,addEventListener:function(t,n){var e=this.listeners[t]||[];e.includes(n)||e.push(n),this.listeners[t]=e},dispatchEvent:function(t,n){n&&(this.customParams[t]=n),(this.listeners[t]||[]).forEach((function(t){return t(n)}))},push:function(t,n){n&&(this.customParams[t]=n),(this.listeners[t]||[]).forEach((function(t){return t(n)}))}},document.onreadystatechange=function(t){return d(t,i)},d(null,i),setTimeout((function(){!function(r,a){var i,o=function(r,a){var i=new URL("".concat(c).concat(r));o=a,s="{",u=s+s,l="_",d=l+l,o.startsWith(u)||o.startsWith(d)||i.searchParams.set(n,a);var o,s,u,l,d;return i.searchParams.append(t,document.referrer),i.searchParams.append(e,location.href),i.searchParams.append("lpt",document.title),i.searchParams.append("t",(new Date).getTime().toString()),i.toString()}(r,a),s=document.createElement("script"),l=document.scripts[0];s.async=1,s.src=o,s.onerror=function(){!function(){for(var t=function(t,n){var e=document.links[t];u().test(decodeURI(e.href))&&setTimeout((function(){e&&e.setAttribute("href",function(t){var n=t.match(u());if(n){var e=(n.groups||{}).original_link;return e?e.slice(0,-1):t}return t}(decodeURI(e.href)))}))},n=0,e=document.links.length;n<e;n++)t(n)}()},null===(i=l.parentNode)||void 0===i||i.insertBefore(s,l)}(r,a)})))}("".concat("/cf/tags","/").concat(new URL(window.location.href).searchParams.get("cftmid")||"__CONTAINER_ID__"),(m=new URL(window.location.href).searchParams.get(n),f=new RegExp("(^| )".concat("cf_cpid","=([^;]+)")),p=(h=document.cookie.match(f))&&h.pop()||null,m||p||"__CAMPAIGN_ID__"))}();</script>
+
 <!-------Top-Caption------->
 <div class="top_caption">
     <div class="container">
@@ -508,7 +526,11 @@ $(document).ready(function(e){
 
 </script>
 
-<!-- Connect Streams Module -->
+<!-- Connect Streams Module — COMMENTED OUT: requires a phone number to render.
+     The lightbox is a callback widget (rings the user's phone), so it only works
+     on post-form pages where we have the lead's number. To enable on the homepage,
+     build a custom click-to-call popup instead.
+
 <div class="g3cm_holder" data-module="1966" data-showoninit="false" data-conversionid="" data-destination="" data-destinationext="" data-followup="" style="display:none;">Thank you for your inquiry. A representative will be in contact with you shortly.</div>
 
 <script type="text/javascript">
@@ -526,15 +548,14 @@ g3cm('send', 'init');
         g3cm('show');
     }
 
-    // 10-second timer
     setTimeout(showPopup, 10000);
 
-    // Exit intent (mouse leaves viewport toward top)
     document.documentElement.addEventListener('mouseleave', function(e) {
         if (e.clientY <= 0) showPopup();
     });
 })();
 </script>
 <script src="https://api.connectstreams.com/js/connectme-v3.min.js" async="async"></script>
+-->
 </body>
 </html>

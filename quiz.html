@@ -19,6 +19,24 @@
 
 <body>
 
+<!-- Capture UTM/tracking params into sessionStorage (if not already set from index.html) -->
+<script>
+(function() {
+    if (!sessionStorage.getItem('landing_url')) {
+        var params = new URLSearchParams(window.location.search);
+        if (params.has('gclid') || params.has('cpid') || params.has('utm_source') || params.has('wbraid') || params.has('gbraid')) {
+            sessionStorage.setItem('landing_url', window.location.href);
+            params.forEach(function(value, key) {
+                sessionStorage.setItem('utm_' + key, value);
+            });
+        }
+    }
+})();
+</script>
+
+<!-- ClickFlare non-redirect tracking script -->
+<script>!function(){"use strict";var t="lp_ref",n="cpid",e="lpurl",c="https://flarehitlog.com",r="(?<domain>http(?:s?)://[^/]*)".concat("/cf/click"),a="(?:(?:/(?<cta>[1-9][0-9]*)/?)|(?:/))?",i="^".concat(r).concat(a).concat("(?:$|(\\\\?.*))"),o='javascript:window.clickflare.l="(?<original_link>'.concat(r).concat(a,'("|(\\\\?[^"]*"))).*'),s=function(){return new RegExp(i,"")},u=function(){return new RegExp(o,"")};function l(t){var n=function(t){return t.replace(s(),(function(t){for(var n=[],e=1;e<arguments.length;e++)n[e-1]=arguments[e];var r=n[n.length-1].domain;return t.replace(r,c)}))}(t);return'javascript:window.clickflare.l="'.concat(n,'"; void 0;')}function d(t,n){if(n&&t&&n.apply(document,[t]),/loaded|interactive|complete/.test(document.readyState))for(var e=0,c=document.links.length;e<c;e++)if(s().test(document.links[e].href)){var r=document.links[e];window.clickflare.links_replaced.has(r)||(r.href=l(r.href),window.clickflare.links_replaced.add(r))}}var f,h,m,p;!function(r,a){var i=document.onreadystatechange;window.clickflare||(window.clickflare={listeners:{},customParams:{},links_replaced:new Set,addEventListener:function(t,n){var e=this.listeners[t]||[];e.includes(n)||e.push(n),this.listeners[t]=e},dispatchEvent:function(t,n){n&&(this.customParams[t]=n),(this.listeners[t]||[]).forEach((function(t){return t(n)}))},push:function(t,n){n&&(this.customParams[t]=n),(this.listeners[t]||[]).forEach((function(t){return t(n)}))}},document.onreadystatechange=function(t){return d(t,i)},d(null,i),setTimeout((function(){!function(r,a){var i,o=function(r,a){var i=new URL("".concat(c).concat(r));o=a,s="{",u=s+s,l="_",d=l+l,o.startsWith(u)||o.startsWith(d)||i.searchParams.set(n,a);var o,s,u,l,d;return i.searchParams.append(t,document.referrer),i.searchParams.append(e,location.href),i.searchParams.append("lpt",document.title),i.searchParams.append("t",(new Date).getTime().toString()),i.toString()}(r,a),s=document.createElement("script"),l=document.scripts[0];s.async=1,s.src=o,s.onerror=function(){!function(){for(var t=function(t,n){var e=document.links[t];u().test(decodeURI(e.href))&&setTimeout((function(){e&&e.setAttribute("href",function(t){var n=t.match(u());if(n){var e=(n.groups||{}).original_link;return e?e.slice(0,-1):t}return t}(decodeURI(e.href)))}))},n=0,e=document.links.length;n<e;n++)t(n)}()},null===(i=l.parentNode)||void 0===i||i.insertBefore(s,l)}(r,a)})))}("".concat("/cf/tags","/").concat(new URL(window.location.href).searchParams.get("cftmid")||"__CONTAINER_ID__"),(m=new URL(window.location.href).searchParams.get(n),f=new RegExp("(^| )".concat("cf_cpid","=([^;]+)")),p=(h=document.cookie.match(f))&&h.pop()||null,m||p||"__CAMPAIGN_ID__"))}();</script>
+
 <!----------Header----------->
 <div class="header">
     <div class="container">
@@ -834,6 +852,24 @@ function submitLead(e) {
         if (inp.checked) gender = i === 0 ? "Male" : "Female";
     });
 
+    // Get household size from step 5
+    var householdSize = "";
+    var houseInputs = document.querySelectorAll('input[name="house"]');
+    houseInputs.forEach(function(inp, i) {
+        if (inp.checked) householdSize = (i === 4) ? "5" : String(i + 1);
+    });
+
+    // Get income from step 7
+    var incomeVal = document.getElementById("income").value.replace(/\D/g, "");
+
+    // Get tracking params from sessionStorage (captured on landing)
+    var landingUrl = sessionStorage.getItem('landing_url') || window.location.href;
+
+    // Read ClickFlare click_id from cookie (set by the CF tracking script)
+    // Falls back to cpid from sessionStorage if cookie not available
+    var cfClickId = (document.cookie.match(/(^| )cf_click_id=([^;]+)/) || [])[2] || '';
+    var subId = cfClickId || sessionStorage.getItem('utm_cpid') || '';
+
     var payload = {
         Request: {
             Format: "JSON",
@@ -843,14 +879,18 @@ function submitLead(e) {
             TYPE: "33",
             SRC: "shophealthratescomenew",
             IP_Address: "75.2.92.149",
-            Landing_Page: window.location.href,
+            Landing_Page: landingUrl,
+            Sub_ID: subId,
             First_Name: document.getElementById("firstName").value.trim(),
             Last_Name: document.getElementById("lastName").value.trim(),
             Email: document.getElementById("email").value.trim(),
             Primary_Phone: phoneVal,
             Address: document.getElementById("address").value.trim(),
             Zip: zip,
-            DOB: dob
+            DOB: dob,
+            Gender: gender,
+            Household_Size: householdSize,
+            Estimated_Household_Income: incomeVal
         }
     };
 
@@ -879,13 +919,17 @@ function submitLead(e) {
         SRC: payload.Request.SRC,
         IP_Address: payload.Request.IP_Address,
         Landing_Page: payload.Request.Landing_Page,
+        Sub_ID: payload.Request.Sub_ID,
         First_Name: payload.Request.First_Name,
         Last_Name: payload.Request.Last_Name,
         Email: payload.Request.Email,
         Primary_Phone: payload.Request.Primary_Phone,
         Address: payload.Request.Address,
         Zip: payload.Request.Zip,
-        DOB: payload.Request.DOB
+        DOB: payload.Request.DOB,
+        Gender: payload.Request.Gender,
+        Household_Size: payload.Request.Household_Size,
+        Estimated_Household_Income: payload.Request.Estimated_Household_Income
     };
 
     for (var key in fields) {
