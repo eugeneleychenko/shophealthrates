@@ -154,11 +154,71 @@ var cfClickId = (document.cookie.match(/(^| )cf_click_id=([^;]+)/) || [])[2] || 
 var subId = cfClickId || sessionStorage.getItem('utm_cpid') || '';
 ```
 
-### Remaining Steps
+### Status
 
-1. **Deploy to Vercel** — `vercel --prod --yes` to push the tracking script and Sub_ID changes live.
-2. **Test end-to-end** — visit `shophealthrates.com/?cpid=6a04cfc67e76d10012a65767` → fill quiz → verify the `cf_click_id` cookie is set and `Sub_ID` is sent to Boberdoo → check ClickFlare Logs for the postback.
-3. **Activate the webhook** — flip Boberdoo webhook ID 53 from "Not Active" to "Active" after confirming the postback fires correctly.
+- **Deployed** to Vercel (live on shophealthrates.com)
+- **Boberdoo webhook ID 53**: Active
+- **ClickFlare tracking script**: Live on index.html and quiz.html
+
+---
+
+## Ringba ↔ ClickFlare Integration (Phone Calls)
+
+### Overview
+
+Connecting **Ringba** (call tracking/routing) to **ClickFlare** so that when an answered phone call comes in via Ringba, a postback fires to ClickFlare recording it as a `phone_call` custom conversion with revenue.
+
+### Accounts
+
+| Platform | URL | Account |
+|----------|-----|---------|
+| Ringba | `app.ringba.com` | Leosource Insurance Agency, LLC |
+| ClickFlare | `app.clickflare.com` | MA workspace |
+
+### Ringba Setup (discovered)
+
+- **Campaign**: "Final Expense" (ID: `CA5a12f36d16ca4210a1cdd3cabb997295`, Live, US)
+- **Number Pool**: "Facebook - Final Expense" (5 numbers, US)
+- **Phone Number**: +18888316829 (toll-free)
+- **Publishers**: "Facebook" (12 total calls), "You" (0 calls)
+
+### ClickFlare Custom Conversion
+
+- **Name**: `phone_call`
+- **Slot**: 2
+- **Parameter**: `phone_call` (passed as `&ct=phone_call` in postback URL)
+- **Include in Conversions**: ✅ ON
+- **Include in Revenue**: ✅ ON
+
+### Ringba Pixel (created and linked)
+
+- **Name**: ClickFlare Phone Call Postback
+- **Fire Pixel On**: Connected (Answered)
+- **Method**: GET
+- **URL**: `https://flarehitlog.com/cf/cv?click_id=[connectionTag:cpid]&payout=[publisherPayoutAmount]&txid=[callId]&ct=phone_call`
+- **Linked to**: Final Expense campaign
+
+### How It Will Work
+
+```
+Google Ads click
+  → ClickFlare generates click_id, sets cf_click_id cookie, passes cpid in URL
+  → User lands on shophealthrates.com (ClickFlare JS tag fires)
+  → Ringba JS tag on page swaps displayed phone number with tracked number
+  → Ringba captures cpid from URL as a connection tag
+  → User calls the tracked number
+  → Call is answered (Connected)
+  → Ringba fires pixel GET request:
+      https://flarehitlog.com/cf/cv?click_id=[connectionTag:cpid]&payout=[publisherPayoutAmount]&txid=[callId]&ct=phone_call
+  → ClickFlare records a "phone_call" conversion with revenue
+```
+
+### Remaining Steps (needs Josh)
+
+1. **Ringba JS tag** — Josh needs to provide the number pool JS snippet to add to site pages (index.html, quiz.html, thank-you pages). Standard format: `<script src="//js.ringba.com/tags/CAMPAIGN_ID" async></script>` — but the exact tag depends on the number pool config.
+2. **Confirm the `cpid` token** — the postback uses `[connectionTag:cpid]` to pass the ClickFlare click_id. Josh should confirm this is the correct Ringba token, or if it should be `[tag:cpid]`, `[publisherTag:cpid]`, etc.
+3. **Add Ringba JS to pages** — once Josh provides the tag, add it to index.html, quiz.html, and thank-you pages.
+4. **Deploy and test** — deploy to Vercel, make a test call, verify the postback fires in ClickFlare Logs under the `phone_call` custom conversion.
 
 ## Commit Guidelines
 
