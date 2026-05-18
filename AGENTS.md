@@ -162,11 +162,11 @@ var subId = cfClickId || sessionStorage.getItem('utm_cpid') || '';
 
 ---
 
-## Ringba ↔ ClickFlare Integration (Phone Calls)
+## Ringba ↔ ClickFlare Integration (Phone Calls — U65)
 
 ### Overview
 
-Connecting **Ringba** (call tracking/routing) to **ClickFlare** so that when an answered phone call comes in via Ringba, a postback fires to ClickFlare recording it as a `phone_call` custom conversion with revenue.
+Connecting **Ringba** (call tracking/routing) to **ClickFlare** so that when an answered phone call comes in via Ringba, a postback fires to ClickFlare recording it as a `phone_call` custom conversion with revenue. This replaces the old Final Expense campaign setup.
 
 ### Accounts
 
@@ -175,12 +175,35 @@ Connecting **Ringba** (call tracking/routing) to **ClickFlare** so that when an 
 | Ringba | `app.ringba.com` | Leosource Insurance Agency, LLC |
 | ClickFlare | `app.clickflare.com` | MA workspace |
 
-### Ringba Setup (discovered)
+### Ringba Setup (completed 2026-05-18)
 
-- **Campaign**: "Final Expense" (ID: `CA5a12f36d16ca4210a1cdd3cabb997295`, Live, US)
-- **Number Pool**: "Facebook - Final Expense" (5 numbers, US)
-- **Phone Number**: +18888316829 (toll-free)
-- **Publishers**: "Facebook" (12 total calls), "You" (0 calls)
+**Campaign**: "U65 LeoSource" (ID: `CA28ed4f20fb83474ba9ae68fe41e6ab78`, Live, US)
+
+**Targets** (both active, Priority routing):
+
+| Target | DID | Purpose | HOO | Priority | Weight |
+|--------|-----|---------|-----|----------|--------|
+| Internal - U65 - LeoSource | +19185254531 | Connect Me (Connect Streams) | Mon-Fri 9:30am-6:30pm ET | 1 | 20 |
+| Internal - U65 - Dialer | +13464497767 | Dialer (top-right corner) | Mon-Fri 9:30am-6:30pm ET | 1 | 20 |
+
+- Both targets convert on **Call Length** (Connected, 120 seconds), Revenue $0, no payout/buffer
+- Sunday and Saturday are disabled on both targets
+- No state filtering (all 50 states)
+
+**Publisher**: "Google Search" → Phone +18664540418, Number Pool "LeoSource - Main" (5 numbers)
+
+**Call Tracking Tag**: "LeoSource Main"
+- Phone: +18664540418
+- Publisher: Google Search
+- Pool: LeoSource - Main
+- **Number to Replace**: +18007581590 (the static `(800) 758-1590` on the website)
+- Ringba JS dynamically swaps this number with a tracked pool number
+
+**URL Parameter**: `cpid` (Reporting Menu Name: "ClickFlare ID", Report Name: "cpid")
+- Ringba captures the `cpid` query param from the URL as a connection tag
+- This carries the ClickFlare click_id through to the postback
+
+**Old campaign**: "Final Expense" (ID: `CA5a12f36d16ca4210a1cdd3cabb997295`) — still exists but no longer in use for U65.
 
 ### ClickFlare Custom Conversion
 
@@ -190,35 +213,53 @@ Connecting **Ringba** (call tracking/routing) to **ClickFlare** so that when an 
 - **Include in Conversions**: ✅ ON
 - **Include in Revenue**: ✅ ON
 
-### Ringba Pixel (created and linked)
+### Ringba Pixel (linked to U65 campaign)
 
 - **Name**: ClickFlare Phone Call Postback
 - **Fire Pixel On**: Connected (Answered)
 - **Method**: GET
 - **URL**: `https://flarehitlog.com/cf/cv?click_id=[connectionTag:cpid]&payout=[publisherPayoutAmount]&txid=[callId]&ct=phone_call`
-- **Linked to**: Final Expense campaign
+- **Linked to**: U65 LeoSource campaign
 
-### How It Will Work
+### Ringba JS Tag (installed on all pages)
+
+```html
+<script src="//b-js.ringba.com/CA28ed4f20fb83474ba9ae68fe41e6ab78" async></script>
+```
+
+Installed in `<head>` of: `index.html`, `quiz.html`, `thank-you.html`, `thank-you-v2.html`
+
+### How It Works (live)
 
 ```
 Google Ads click
   → ClickFlare generates click_id, sets cf_click_id cookie, passes cpid in URL
   → User lands on shophealthrates.com (ClickFlare JS tag fires)
-  → Ringba JS tag on page swaps displayed phone number with tracked number
+  → Ringba JS tag swaps (800) 758-1590 with a tracked pool number
   → Ringba captures cpid from URL as a connection tag
   → User calls the tracked number
+  → Ringba routes to Dialer (+13464497767) or ConnectMe (+19185254531)
   → Call is answered (Connected)
   → Ringba fires pixel GET request:
       https://flarehitlog.com/cf/cv?click_id=[connectionTag:cpid]&payout=[publisherPayoutAmount]&txid=[callId]&ct=phone_call
   → ClickFlare records a "phone_call" conversion with revenue
 ```
 
-### Remaining Steps (needs Josh)
+### Status
 
-1. **Ringba JS tag** — Josh needs to provide the number pool JS snippet to add to site pages (index.html, quiz.html, thank-you pages). Standard format: `<script src="//js.ringba.com/tags/CAMPAIGN_ID" async></script>` — but the exact tag depends on the number pool config.
-2. **Confirm the `cpid` token** — the postback uses `[connectionTag:cpid]` to pass the ClickFlare click_id. Josh should confirm this is the correct Ringba token, or if it should be `[tag:cpid]`, `[publisherTag:cpid]`, etc.
-3. **Add Ringba JS to pages** — once Josh provides the tag, add it to index.html, quiz.html, and thank-you pages.
-4. **Deploy and test** — deploy to Vercel, make a test call, verify the postback fires in ClickFlare Logs under the `phone_call` custom conversion.
+- **Deployed** to Vercel (live on shophealthrates.com) — 2026-05-18
+- **Ringba JS tag**: Live on all 4 pages
+- **ClickFlare pixel**: Linked to U65 campaign, fires on Connected
+- **cpid URL parameter**: Configured on U65 campaign
+- **Number to Replace**: Set to +18007581590
+
+### Testing
+
+To test the full flow:
+1. Visit `https://shophealthrates.com/?cpid=test123`
+2. Verify the `(800) 758-1590` number is swapped with a Ringba tracked number
+3. Call the tracked number during HOO (Mon-Fri 9:30am-6:30pm ET)
+4. Check ClickFlare Logs for a `phone_call` conversion with `click_id=test123`
 
 ## Commit Guidelines
 
