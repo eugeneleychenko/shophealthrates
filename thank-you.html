@@ -18,6 +18,22 @@
 <!-- Ringba call tracking tag -->
 <script src="//b-js.ringba.com/CA28ed4f20fb83474ba9ae68fe41e6ab78" async></script>
 
+<!-- Bridge: pass ClickFlare click ID to Ringba -->
+<script>
+(function() {
+  var intervalId = setInterval(function() {
+    var cfClickId = (window.clickflare && window.clickflare.tracking_params && window.clickflare.tracking_params.click_id)
+      || (document.cookie.match(/(^| )cf_click_id=([^;]+)/) || [])[2]
+      || '';
+    if (cfClickId) {
+      (window._rgba_tags = (window._rgba_tags || [])).push({ type: "User", clickid: cfClickId });
+      clearInterval(intervalId);
+    }
+  }, 500);
+  setTimeout(function() { clearInterval(intervalId); }, 15000);
+})();
+</script>
+
 </head>
 
 <body>
