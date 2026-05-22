@@ -1,0 +1,87 @@
+%% LeoSource / ShopHealthRates.com — Full System Flow
+%% All phone numbers, IDs, and integrations as of 2026-05-18
+
+flowchart TD
+    subgraph GA["Google Ads"]
+        A1["User clicks ad"]
+    end
+
+    subgraph CF["ClickFlare (flarehitlog.com)"]
+        B1["Campaign: Google - Search - Main\nID: 6a04cfc67e76d10012a65767"]
+        B2["Sets cf_click_id cookie\nPasses cpid in URL"]
+        B3["Records lead conversion\n(click_id + payout + txid)"]
+        B4["Records phone_call conversion\n(click_id + payout + txid + ct=phone_call)"]
+        B5["Posts conversion → Google Ads"]
+    end
+
+    subgraph SITE["shophealthrates.com (Vercel)"]
+        C1["index.html\n— Zip code form\n— ClickFlare JS tag\n— Ringba JS tag"]
+        C2["quiz.html\n— Multi-step form\n— ClickFlare JS tag\n— Ringba JS tag\n— Reads cf_click_id → Sub_ID"]
+        C3["thank-you.html\n— Connect Streams lightbox\n— Ringba JS tag\n— ?phone= param required"]
+    end
+
+    subgraph RINGBA["Ringba (app.ringba.com)"]
+        R0["Campaign: U65 LeoSource\nID: CA28ed4f20fb83474ba9ae68fe41e6ab78"]
+        R1["Publisher: Google Search\nPhone: +18664540418\nPool: LeoSource - Main (5 numbers)"]
+        R2["Swaps (800) 758-1590\nwith tracked pool number"]
+        R3["Captures cpid from URL\nas connection tag"]
+        R4{"Route call\n(Priority routing)"}
+        R5["Target: Connect Me\nDID: +19185254531"]
+        R6["Target: Dialer\nDID: +13464497767"]
+        R7["Pixel fires on Connected\n(120s call length)"]
+    end
+
+    subgraph CS["Connect Streams (manage.connectstreams.com)"]
+        S1["Module 1966: ShopHealthRates.com\nPhone: (844) 494-7060\nDest: 8664540418 (Ringba)\nSchedule: M-F 9:30am-6:30pm EST"]
+        S2["Lightbox appears\n→ Calls user's phone\n→ Bridges to destination"]
+    end
+
+    subgraph BOB["Boberdoo (leosourceinsurance.leadportal.com)"]
+        D1["Lead Types:\n— Health Insurance (ID 33)\n— Inbound Phone (ID 9)\n— Test (ID 32)"]
+        D2["Lead matched to buyer"]
+        D3["Webhook ID 53: ClickFlare Postback\nGET flarehitlog.com/cf/cv\nclick_id=LEAD_SUBID\npayout=LEAD_PRICE\ntxid=LEAD_ID"]
+    end
+
+    %% Ad click flow
+    A1 -->|"gclid + UTMs"| B1
+    B1 --> B2
+    B2 -->|"URL: shophealthrates.com/?cpid=...&gclid=..."| C1
+
+    %% Site navigation
+    C1 -->|"zip code submit"| C2
+    C2 -->|"form submit\n(Sub_ID = cf_click_id)"| D1
+    C2 -->|"redirect with ?phone="| C3
+
+    %% Lead flow
+    D1 --> D2
+    D2 --> D3
+    D3 -->|"server-to-server GET"| B3
+    B3 --> B5
+
+    %% Phone call flow
+    C1 & C2 & C3 -.-|"Ringba JS loads"| R1
+    R1 --> R2
+    R2 -.-|"(800) 758-1590 → pool number"| C1
+    R1 --> R3
+    R3 -.-|"cpid = ClickFlare click_id"| R0
+
+    %% User calls
+    R2 -->|"User dials\ntracked number"| R4
+    R4 -->|"Weight 20"| R5
+    R4 -->|"Weight 20"| R6
+    R5 & R6 --> R7
+    R7 -->|"GET flarehitlog.com/cf/cv\nclick_id=cpid&payout=amount\ntxid=callId&ct=phone_call"| B4
+    B4 --> B5
+
+    %% Connect Streams flow
+    C3 -->|"Module 1966 init\n(during HOO only)"| S1
+    S1 --> S2
+    S2 -->|"Bridges call to\n+18664540418 (Ringba)"| R4
+
+    %% Styling
+    style GA fill:#4285F4,color:#fff
+    style CF fill:#FF6B35,color:#fff
+    style SITE fill:#00C853,color:#fff
+    style RINGBA fill:#7B1FA2,color:#fff
+    style CS fill:#0288D1,color:#fff
+    style BOB fill:#F57C00,color:#fff

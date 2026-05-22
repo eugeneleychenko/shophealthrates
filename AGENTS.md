@@ -55,12 +55,43 @@ No package manager, bundler, or build tools. Edit HTML/CSS/JS files directly. Pr
 
 Module **1966** (ShopHealthRates.com) from [manage.connectstreams.com](https://manage.connectstreams.com). Renders a "Connect Me Now" callback lightbox powered by Connect Streams (Gen3Ventures).
 
+### Account
+
+| Platform | URL | Account |
+|----------|-----|---------|
+| Connect Streams | `manage.connectstreams.com` | mandreyev@leosourceinsurance.com (credentials in `.env`) |
+
+### Module 1966 Configuration (verified 2026-05-18)
+
+| Field | Value |
+|-------|-------|
+| Name | ShopHealthRates.com |
+| Phone Number | (844) 494-7060 |
+| Destination Number | 8664540418 (Ringba publisher number) |
+| Connect Message | Built-in: Connect General Health Insurance |
+| Time Zone | EST |
+| **Schedule** | **M-F 9:30am - 6:30pm** |
+| Hostname | shophealthrates.com |
+| Template | Built-in: Agent - Right Align - Lightbox - Minimize |
+| Voicemail Detection | On |
+| Account Balance | $196.00 (as of 2026-05-18) |
+
+There is also module **1964** (ShopHealthRates.net) — appears to be an older/alternate module.
+
+### Hours of Operation (important)
+
+The lightbox **will NOT appear outside business hours** (M-F 9:30am - 6:30pm EST). The Connect Streams API returns `lightbox: false` when outside the schedule window, and the widget silently suppresses itself. This is by design — no agents are available to take callbacks outside HOO.
+
+If the client reports the banner is missing, **first check the time** before debugging code.
+
+### Pages
+
 - **thank-you.html / thank-you-v2.html** — Lightbox auto-opens on page load. Requires `?phone=<digits>` query param (passed from quiz.html on form submit).
 - **index.html** — Commented out. Connect Streams requires a valid phone number to render (it's a callback widget that rings the user's phone). No phone is available on the homepage since the user hasn't submitted the form yet. To add a homepage popup, build a custom click-to-call modal instead.
 
 ### Testing the Lightbox
 
-The lightbox only works on **thank-you pages** because Connect Streams needs a phone number.
+The lightbox only works on **thank-you pages** during **business hours (M-F 9:30am - 6:30pm EST)** because Connect Streams needs both a phone number and an active schedule.
 
 **Quick test URL:**
 ```
@@ -89,6 +120,25 @@ agent-browser wait 5000
 agent-browser screenshot test-lightbox.png
 ```
 
+### Debugging the Lightbox
+
+If the lightbox isn't appearing, check the internal widget state in the browser console:
+
+```js
+// Find the Connect Streams instance and inspect module state
+var cm = null;
+for (var key in window) {
+  if (window[key] && window[key].classname && window[key].modules) { cm = window[key]; break; }
+}
+// Key fields to check:
+// cm.modules[containerid].loaded    — true if API responded
+// cm.modules[containerid].lightbox  — false means API suppressed it (likely HOO)
+// cm.modules[containerid].showoninit — should be true
+// cm.phonenumber                    — should have the phone from ?phone= param
+```
+
+If `lightbox: false` and `loaded: true` → the Connect Streams backend is suppressing it (schedule/HOO). Check `manage.connectstreams.com` → Modules → 1966 → Schedule.
+
 ## Boberdoo ↔ ClickFlare Integration
 
 ### Overview
@@ -99,23 +149,26 @@ Connecting **Boberdoo** (lead distribution) to **ClickFlare** (ad tracking) so t
 
 | Platform | URL | Account |
 |----------|-----|---------|
-| Boberdoo | `leosourceinsurance.leadportal.com` | Eugene Leychenko (admin) |
+| Boberdoo | `leosourceinsurance.leadportal.com` | Eugene Leychenko (admin, credentials in `.env`) |
 | ClickFlare | `app.clickflare.com` | MA workspace |
 
 ### ClickFlare Setup (discovered)
 
-- **Tracking domain**: `flarehitlog.com` (shared/dedicated — no custom domain configured yet)
+- **Tracking domain**: `leosourceclick.com` (custom domain, CNAME → cname.flareclickhero.com; previously `flarehitlog.com`)
 - **Campaign**: "Google - Search - Main" (ID: `6a04cfc67e76d10012a65767`)
 - **Offer**: "LeoSource - ShopHealthRates.com"
 - **Offer URL**: `https://shophealthrates.com/?gclid={gclid}&wbraid={wbraid}&gbraid={gbraid}&campaignid={campaignid}&adgroupid={adgroupid}&loc_physicall_ms={loc_physical_ms}&loc_interest_ms={loc_interest_ms}&matchtype={matchtype}&network={network}&creative={creative}&keyword={keyword}&placement={placement}&targetid={targetid}&cpid=6a04cfc67e76d10012a65767`
 - **Campaign uses**: Tag-based tracking (ClickFlare JS script on the landing page, not redirect)
-- **Postback URL format**: `https://flarehitlog.com/cf/cv?click_id=REPLACE&payout=OPTIONAL&txid=OPTIONAL`
+- **Postback URL format**: `https://leosourceclick.com/cf/cv?click_id=REPLACE&payout=OPTIONAL&txid=OPTIONAL`
 
 ### Boberdoo Setup (discovered)
 
 - **Lead Types**: Health Insurance (ID 33, pingpost), Inbound Phone (ID 9, pingpost), Test (ID 32)
 - **Webhooks page**: Settings → Webhooks (`pageID=165`)
-- **Webhook created**: "ClickFlare Postback" — Event: `New Lead - Matched`, Type: `Post / Get` (GET)
+- **Webhooks created**:
+  - ID 53: "ClickFlare Postback" — Event: `New Lead - Matched`, Type: GET, Host: `leosourceclick.com/cf/cv`
+  - ID 55: "ClickFlare Postback - Unmatched" — Event: `New Lead - Unmatched`, Type: GET, Host: `leosourceclick.com/cf/cv`
+  - ID 57: "ClickFlare Sale Postback" — Event: `CRM Status - Changed`, Type: GET, Host: `leosourceclick.com/cf/cv` (includes `ct=sale`)
 - **Available magic strings for the postback**:
   - `{LEAD_SUBID}` — Lead SUB ID (intended to carry ClickFlare's `click_id`)
   - `{LEAD_PRICE}` — Lead Price (maps to ClickFlare `payout`)
@@ -146,7 +199,7 @@ Google Ads click
 - Values: `click_id={LEAD_SUBID}`, `payout={LEAD_PRICE}`, `txid={LEAD_ID}`
 - Status: **Not Active** (activate after testing)
 
-**ClickFlare tracking script** — installed on both `index.html` and `quiz.html` (replaces the placeholder comment). The script registers visits with `flarehitlog.com/cf/tags/...` and sets a `cf_click_id` cookie.
+**ClickFlare tracking script** — installed on both `index.html` and `quiz.html`. The script registers visits with `leosourceclick.com/cf/tags/...` and sets a `cf_click_id` cookie.
 
 **quiz.html Sub_ID logic** — updated to read `cf_click_id` cookie first, falling back to `cpid` from sessionStorage:
 ```js
@@ -154,11 +207,41 @@ var cfClickId = (document.cookie.match(/(^| )cf_click_id=([^;]+)/) || [])[2] || 
 var subId = cfClickId || sessionStorage.getItem('utm_cpid') || '';
 ```
 
+### ClickFlare Conversion Events (from Josh — 2026-05-20)
+
+Josh confirmed three separate ClickFlare conversion types are needed:
+
+| Conversion | Trigger | Postback URL |
+|-----------|---------|-------------|
+| Lead (default) | Any new qualified lead (matched + unmatched) | `https://leosourceclick.com/cf/cv?click_id={LEAD_SUBID}&payout={LEAD_PRICE}&txid={LEAD_ID}` |
+| Sale | CRM status → Sold | `https://leosourceclick.com/cf/cv?click_id={LEAD_SUBID}&payout={LEAD_PRICE}&txid={LEAD_ID}&ct=sale` |
+| Phone call | Ringba connected call | Already handled via Ringba pixel (see below) ✅ |
+
+### Known Issue: flarehitlog.com Blocked in Boberdoo (ticket #209051)
+
+**Boberdoo blocks `flarehitlog.com`** in the webhook creation form ("Host is invalid or restricted!"). Regular admin users cannot create webhooks with this domain. Boberdoo support created webhook 53 as a superadmin to bypass this restriction.
+
+- **Ticket #209051**: "flarehitlog blocked?" — Status: Open, Priority: Very High
+- **Action needed**: Reply to ticket asking support to:
+  1. Create webhook for **"New Lead - Unmatched"** event (same config as webhook 53)
+  2. Create webhook for **"CRM Status - Changed"** event (same host, add `ct=sale` value)
+  3. Whitelist `flarehitlog.com` so admin users can manage webhooks themselves
+
+### Why Webhook 53 Wasn't Firing (diagnosed 2026-05-20)
+
+Webhook 53 fires on **"New Lead - Matched"** only — requires a buyer/partner to accept the lead via ping/post. Test leads were entering Boberdoo successfully (Sub_ID populated correctly with ClickFlare click_id), but were not being matched to any buyer, so the webhook never fired.
+
+Josh wants the postback to fire on ANY qualified lead (both matched and unmatched). Fix requires a second webhook with event "New Lead - Unmatched" pointing to the same URL.
+
 ### Status
 
 - **Deployed** to Vercel (live on shophealthrates.com)
-- **Boberdoo webhook ID 53**: Active
-- **ClickFlare tracking script**: Live on index.html and quiz.html
+- **Boberdoo webhooks**: ID 53 (Matched), ID 55 (Unmatched), ID 57 (Sale) — all Active, all using `leosourceclick.com`
+- **ClickFlare tracking script**: Live on index.html and quiz.html, using `leosourceclick.com`
+- **Ringba pixel**: Updated to `leosourceclick.com`
+- **Sub_ID pipeline**: Verified working (cf_click_id cookie → quiz.html Sub_ID → Boberdoo LEAD_SUBID)
+- **Custom domain**: `leosourceclick.com` (purchased on Namecheap, CNAME → cname.flareclickhero.com)
+- **Pending**: Josh needs to confirm custom domain is fully "Active" in ClickFlare (currently returning 404 on tag requests)
 
 ---
 
@@ -218,7 +301,7 @@ Connecting **Ringba** (call tracking/routing) to **ClickFlare** so that when an 
 - **Name**: ClickFlare Phone Call Postback
 - **Fire Pixel On**: Connected (Answered)
 - **Method**: GET
-- **URL**: `https://flarehitlog.com/cf/cv?click_id=[connectionTag:cpid]&payout=[publisherPayoutAmount]&txid=[callId]&ct=phone_call`
+- **URL**: `https://leosourceclick.com/cf/cv?click_id=[connectionTag:cpid]&payout=[publisherPayoutAmount]&txid=[callId]&ct=phone_call`
 - **Linked to**: U65 LeoSource campaign
 
 ### Ringba JS Tag (installed on all pages)
@@ -241,7 +324,7 @@ Google Ads click
   → Ringba routes to Dialer (+13464497767) or ConnectMe (+19185254531)
   → Call is answered (Connected)
   → Ringba fires pixel GET request:
-      https://flarehitlog.com/cf/cv?click_id=[connectionTag:cpid]&payout=[publisherPayoutAmount]&txid=[callId]&ct=phone_call
+      https://leosourceclick.com/cf/cv?click_id=[connectionTag:cpid]&payout=[publisherPayoutAmount]&txid=[callId]&ct=phone_call
   → ClickFlare records a "phone_call" conversion with revenue
 ```
 
