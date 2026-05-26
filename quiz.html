@@ -930,6 +930,12 @@ function submitLead(e) {
         console.error("Lead submission error:", err);
     });
 
+    // Fire ClickFlare lead conversion client-side (full click_id, bypasses Boberdoo truncation)
+    if (subId) {
+        var img = new Image();
+        img.src = 'https://leosourceclick.com/cf/cv?click_id=' + encodeURIComponent(subId);
+    }
+
     // Redirect to thank-you page after brief delay for the POST to fire
     setTimeout(function() {
         window.location.href = "thank-you.html?phone=" + encodeURIComponent(phoneVal);
