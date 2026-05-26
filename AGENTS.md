@@ -152,6 +152,37 @@ Connecting **Boberdoo** (lead distribution) to **ClickFlare** (ad tracking) so t
 | Boberdoo | `leosourceinsurance.leadportal.com` | Eugene Leychenko (admin, credentials in `.env`) |
 | ClickFlare | `app.clickflare.com` | MA workspace |
 
+### Boberdoo Admin API
+
+**Key ID**: 107 — "Admin Lead & Webhook API"
+**Type**: Admin (all 84 permissions)
+**Key**: `31b08e7d933d478c3e3359f723ef262454c1b17005b0c27e5db2eca79bdc2634`
+**IP Whitelist**: `209.122.209.0/24`
+**Expiration**: Unlimited
+
+**Get leads by date:**
+```bash
+curl -s -X POST "https://leosourceinsurance.leadportal.com/new_api/api.php" \
+  -d "Format=JSON" \
+  -d "Key=31b08e7d933d478c3e3359f723ef262454c1b17005b0c27e5db2eca79bdc2634" \
+  -d "API_Action=getLeadDetails" \
+  -d "Lead_Type=33" \
+  -d "Date_Start=2026-05-26" \
+  -d "Date_End=2026-05-26"
+```
+
+**Useful parameters** (from API spec):
+- `Lead_Type` (integer, required): 33 = Health Insurance, 9 = Inbound Phone, 32 = Test
+- `Date_Start` / `Date_End` (YYYY-MM-DD): filter by date range
+- `Last_Lead_ID` (integer): paginate — returns leads after this ID (100 per page)
+- `Lead_ID` (integer): get a specific lead
+- `Email` / `Phone` (string): search by contact info
+- `By_Transaction_Date` ("Yes"): order by transaction date instead of lead ID
+
+**Response fields per lead**: `lead_id`, `lead_date`, `lead_status` (Matched/Unmatched), `lead_data.sub_id`, `lead_data.src`, `lead_data.first_name`, `lead_data.last_name`, `lead_data.email`, `lead_data.primary_phone`, `lead_data.zip`, etc.
+
+**Note**: There is also a Partner API key (ID 105) with limited permissions (pingPostLead, setCRMLeadStatus only). The Admin key (ID 107) is needed for getLeadDetails and other read operations.
+
 ### ClickFlare Setup (discovered)
 
 - **Tracking domain**: `leosourceclick.com` (custom domain, CNAME → cname.flareclickhero.com; previously `flarehitlog.com`)
