@@ -915,52 +915,20 @@ function submitLead(e) {
 
     console.log("Submitting lead payload:", JSON.stringify(payload, null, 2));
 
-    // Create hidden iframe to receive the POST response (avoids CORS)
-    var iframeName = "leadPostFrame_" + Date.now();
-    var iframe = document.createElement("iframe");
-    iframe.name = iframeName;
-    iframe.style.display = "none";
-    document.body.appendChild(iframe);
+    // Build URL-encoded form body
+    var formBody = Object.keys(payload.Request).map(function(key) {
+        return encodeURIComponent(key) + '=' + encodeURIComponent(payload.Request[key]);
+    }).join('&');
 
-    // Build a hidden form targeting the iframe
-    var form = document.createElement("form");
-    form.method = "POST";
-    form.action = "https://leosourceinsurance.leadportal.com/new_api/api.php";
-    form.target = iframeName;
-    form.style.display = "none";
-
-    var fields = {
-        Format: "JSON",
-        Mode: payload.Request.Mode,
-        Key: payload.Request.Key,
-        API_Action: payload.Request.API_Action,
-        TYPE: payload.Request.TYPE,
-        SRC: payload.Request.SRC,
-        IP_Address: payload.Request.IP_Address,
-        Landing_Page: payload.Request.Landing_Page,
-        Sub_ID: payload.Request.Sub_ID,
-        First_Name: payload.Request.First_Name,
-        Last_Name: payload.Request.Last_Name,
-        Email: payload.Request.Email,
-        Primary_Phone: payload.Request.Primary_Phone,
-        Address: payload.Request.Address,
-        Zip: payload.Request.Zip,
-        DOB: payload.Request.DOB,
-        Gender: payload.Request.Gender,
-        Household_Size: payload.Request.Household_Size,
-        Estimated_Household_Income: payload.Request.Estimated_Household_Income
-    };
-
-    for (var key in fields) {
-        var input = document.createElement("input");
-        input.type = "hidden";
-        input.name = key;
-        input.value = fields[key];
-        form.appendChild(input);
-    }
-
-    document.body.appendChild(form);
-    form.submit();
+    // Fire-and-forget POST to Boberdoo (no-cors since we don't need the response)
+    fetch("https://leosourceinsurance.leadportal.com/new_api/api.php", {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: formBody
+    }).catch(function(err) {
+        console.error("Lead submission error:", err);
+    });
 
     // Redirect to thank-you page after brief delay for the POST to fire
     setTimeout(function() {
