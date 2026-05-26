@@ -243,5 +243,18 @@ g3cm('phonenumberqs', 'phone');
 g3cm('send', 'init');
 </script>
 <script src="https://api.connectstreams.com/js/connectme-v3.min.js" async="async"></script>
+
+<!-- Fire ClickFlare phone_call conversion when user clicks Connect Streams button -->
+<script>
+document.addEventListener('click', function(e) {
+    var btn = e.target.closest('a[id^="g3cm_btn_"]');
+    if (!btn) return;
+    var cfClickId = (document.cookie.match(/(^| )cf_click_id=([^;]+)/) || [])[2] || '';
+    if (cfClickId) {
+        var img = new Image();
+        img.src = 'https://leosourceclick.com/cf/cv?click_id=' + encodeURIComponent(cfClickId) + '&ct=phone_call';
+    }
+}, true);
+</script>
 </body>
 </html>
