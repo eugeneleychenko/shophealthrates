@@ -24,6 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write
     env:
       # These are project identifiers, not secrets (from .vercel/project.json).
       VERCEL_ORG_ID: team_JRdKsTQV9jopaKxc8wlsdvGz
