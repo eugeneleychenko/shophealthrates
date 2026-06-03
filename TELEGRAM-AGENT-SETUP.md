@@ -24,6 +24,28 @@ Everything below is the one-time wiring of bot + tokens + webhook.
 
 ---
 
+## STATUS: LIVE (configured 2026-06-03)
+
+Fully wired and validated end-to-end.
+
+| Thing | Value / location |
+|-------|------------------|
+| Bot | **@leosource_bot** (privacy mode off → reads all group messages) |
+| Group | "Leosource/ Integrations", chat id **`-5101729997`** |
+| Webhook | `https://shophealthrates.com/api/telegram` (Vercel fn, project `vyb/shophealthrates`) |
+| GitHub Actions secrets | `TELEGRAM_BOT_TOKEN`, `VERCEL_TOKEN`, `CLAUDE_CODE_OAUTH_TOKEN` |
+| Vercel env (Production) | `TELEGRAM_SECRET`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `GITHUB_TOKEN`, `ALLOWED_CHAT_IDS` |
+| Webhook's `GITHUB_TOKEN` | fine-grained PAT on `shophealthrates`, **Contents: Read & write** (required for `repository_dispatch`) |
+
+**Gotchas baked into `.github/workflows/telegram-agent.yml`:**
+- `claude-code-action` needs `permissions: id-token: write` (OIDC) — not just `contents`.
+- The push-to-main step authenticates via `https://x-access-token:${GITHUB_TOKEN}@github.com/...`; the bare `git push` fails ("password auth not supported").
+- `.vercelignore` keeps `.env` and `*.md` (incl. `AGENTS.md`, which holds the Boberdoo key) out of the public deploy.
+
+**Security housekeeping:** the bot token, Claude OAuth token, and PAT were pasted into a chat during setup — rotate them when convenient (`/revoke` in BotFather; regenerate the others). The Boberdoo API key in `AGENTS.md` may have been publicly served on earlier deploys — consider rotating it too.
+
+---
+
 ## What you trigger it with
 
 In the group, the bot only reacts when **explicitly addressed** (so normal chatter
