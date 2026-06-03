@@ -8,8 +8,12 @@ on:
   workflow_dispatch:
     inputs:
       request:
-        description: "Change request text"
+        description: "Request / question text"
         required: true
+      mode:
+        description: "change | ask | auto"
+        required: false
+        default: "auto"
       chat_id:
         description: "Telegram chat id to reply to (optional)"
         required: false
@@ -32,6 +36,7 @@ jobs:
       CHAT_ID: ${{ github.event.client_payload.chat_id || github.event.inputs.chat_id }}
       REQUEST: ${{ github.event.client_payload.request || github.event.inputs.request }}
       FROM: ${{ github.event.client_payload.from || 'manual' }}
+      MODE: ${{ github.event.client_payload.mode || github.event.inputs.mode || 'auto' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -60,36 +65,46 @@ jobs:
           done
           ls -la _agent_inbox || true
 
-      - name: Make the change with Claude
+      - name: Handle the request with Claude
         uses: anthropics/claude-code-action@v1
         with:
           # Uses your Claude subscription (run `claude setup-token` to mint this),
-          # so changes don't bill per-token against a separate API key.
+          # so this doesn't bill per-token against a separate API key.
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
-            A client (${{ env.FROM }}) sent this change request for the static
-            marketing site in this repo. Read AGENTS.md first for full project
-            context, conventions, and gotchas.
+            A client (${{ env.FROM }}) sent this message in the Telegram group for
+            the static marketing site in this repo. Read AGENTS.md first for full
+            project context, conventions, and gotchas.
 
-            REQUEST:
+            MESSAGE:
             "${{ env.REQUEST }}"
 
-            Any screenshots they attached are in ./_agent_inbox/ — open them as
-            images to see exactly what they mean. Red marks usually highlight the
-            element to change.
+            INTENT HINT: mode="${{ env.MODE }}"  (change = make an edit; ask =
+            answer a question; auto = decide from the message itself).
 
-            Make the change directly to the site's HTML/CSS/JS. Keep it minimal,
-            match the surrounding code style, and follow AGENTS.md (e.g. forms
-            must use method="get"). Do NOT modify or stage anything under
-            _agent_inbox/. When finished, `git add` your changed files and
-            `git commit` with a short message. Do NOT push or deploy — the
-            workflow does that.
+            Any screenshots are in ./_agent_inbox/ — open them as images; red marks
+            usually highlight the element in question.
 
-            If the request is too ambiguous to act on safely, make NO code
-            changes; instead write a single clarifying question to
-            ./_agent_inbox/REPLY.txt and stop.
+            Decide which of these it is and act accordingly:
+
+            1. QUESTION / info request (e.g. "where did we add the quiz links?",
+               "what changed today?", "is the form working on mobile?"): DO NOT edit
+               any files. Investigate using the repo and git history (git log,
+               git show, git diff, grep, reading files) and write a clear, concise
+               answer for Telegram — plain text, a few sentences, citing file names
+               or dates where useful — to ./_agent_inbox/REPLY.txt. Then stop.
+
+            2. CHANGE request (e.g. "make X clickable", "change the headline to Y"):
+               make the change directly to the site's HTML/CSS/JS — minimal, matching
+               the surrounding style and AGENTS.md (e.g. forms must use method="get").
+               Do NOT modify or stage anything under _agent_inbox/. When done,
+               `git add` your changed files and `git commit` with a short message.
+               Do NOT push or deploy — the workflow does that.
+
+            3. CHANGE request too ambiguous to do safely: make NO changes; write a
+               single clarifying question to ./_agent_inbox/REPLY.txt and stop.
           claude_args: >-
-            --allowedTools "Read,Edit,Write,Bash(git add:*),Bash(git commit:*),Bash(git status:*),Bash(git diff:*),Bash(grep:*),Bash(ls:*),Bash(cat:*)"
+            --allowedTools "Read,Edit,Write,Bash(git add:*),Bash(git commit:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(grep:*),Bash(ls:*),Bash(cat:*)"
 
       - name: Push, deploy, and report back to Telegram
         if: always()
@@ -105,19 +120,26 @@ jobs:
               -d "$(jq -n --arg c "$CHAT_ID" --arg t "$1" '{chat_id:$c, text:$t}')" >/dev/null
           }
 
-          # 1) Ambiguous → Claude asked a clarifying question instead of editing.
+          # 1) Claude wrote a reply — an answer to a question, or a clarifying
+          #    question for an ambiguous edit. Send it verbatim; never deploy.
           if [ -f _agent_inbox/REPLY.txt ]; then
-            send "❓ $(cat _agent_inbox/REPLY.txt)"
+            send "$(cat _agent_inbox/REPLY.txt)"
             exit 0
           fi
 
-          # 2) No new commit → Claude couldn't safely make the change.
+          # 2) Ask mode must never push/deploy, even if Claude made a stray commit.
+          if [ "$MODE" = "ask" ]; then
+            send "I looked into that but couldn't produce an answer automatically — Eugene will follow up."
+            exit 0
+          fi
+
+          # 3) No new commit → Claude couldn't safely make the change.
           if [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ]; then
             send "🤔 I couldn't make that change automatically — Eugene will take a look."
             exit 0
           fi
 
-          # 3) Ship it.
+          # 4) Ship it.
           git push "https://x-access-token:${GH_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:main \
             || { send "⚠️ Made the change but couldn't push to GitHub — Eugene will take a look."; exit 1; }
 

@@ -45,17 +45,24 @@ module.exports = async (req, res) => {
   //    never triggers a deploy. Trigger on "/change <request>" or an @mention.
   const text = msg.text || msg.caption || "";
   const botUser = process.env.TELEGRAM_BOT_USERNAME || "";
-  const addressed =
-    /^\/change\b/i.test(text) || (botUser && text.includes("@" + botUser));
-  if (!addressed) return res.status(200).send("not addressed");
+
+  // How was the bot addressed? This sets the intent hint passed downstream:
+  //   /change <edit>   → make a code change + deploy
+  //   /ask <question>  → answer a question, no code changes, no deploy
+  //   @mention <text>  → "auto": the agent decides whether to answer or change
+  let mode = null;
+  if (/^\/change\b/i.test(text)) mode = "change";
+  else if (/^\/(ask|q)\b/i.test(text)) mode = "ask";
+  else if (botUser && text.includes("@" + botUser)) mode = "auto";
+  if (!mode) return res.status(200).send("not addressed");
 
   const request = text
-    .replace(/^\/change(@\w+)?/i, "")
+    .replace(/^\/(change|ask|q)(@\w+)?/i, "")
     .split("@" + botUser).join("")
     .trim();
 
   if (!request) {
-    await tgSend(chatId, 'Tell me what to change, e.g. "/change make the red box clickable to step 2 of the quiz"');
+    await tgSend(chatId, 'Tell me what you need — "/change <edit>" to update the site, or "/ask <question>" to ask about it.');
     return res.status(200).send("empty request");
   }
 
@@ -84,6 +91,7 @@ module.exports = async (req, res) => {
         event_type: "telegram-change-request",
         client_payload: {
           request,
+          mode,
           chat_id: chatId,
           message_id: msg.message_id,
           from: (msg.from && (msg.from.username || msg.from.first_name)) || "client",
@@ -99,7 +107,10 @@ module.exports = async (req, res) => {
     return res.status(200).send("dispatch failed: " + body);
   }
 
-  await tgSend(chatId, "👍 On it — making the change and deploying. I'll confirm here when it's live.");
+  const ack = mode === "change"
+    ? "👍 On it — making the change and deploying. I'll confirm here when it's live."
+    : "👀 On it — looking into this now, I'll reply here shortly.";
+  await tgSend(chatId, ack);
   return res.status(200).send("dispatched");
 };
 
