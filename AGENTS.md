@@ -375,6 +375,35 @@ To test the full flow:
 3. Call the tracked number during HOO (Mon-Fri 9:30am-6:30pm ET)
 4. Check ClickFlare Logs for a `phone_call` conversion with `click_id=test123`
 
+## Claude Code on the Web (Remote Management)
+
+This project is configured for remote management via [claude.ai/code](https://claude.ai/code). No local machine required.
+
+### Environment
+
+- **Cloud environment**: Default Cloud Environment
+- **Repo**: `eugeneleychenko/shophealthrates` (main branch)
+- **Vercel CLI**: Available via `$VERCEL_TOKEN` env var
+- **Deploy command**: `vercel --prod --yes --token $VERCEL_TOKEN`
+
+### Workflow
+
+1. Copy client request from Telegram
+2. Open [claude.ai/code](https://claude.ai/code) on phone or browser
+3. Select `shophealthrates` repo and paste the request
+4. Claude edits files, commits, pushes to GitHub, and deploys to Vercel
+5. Confirm back in Telegram
+
+### Common Tasks
+
+```
+# Deploy to production
+vercel --prod --yes --token $VERCEL_TOKEN
+
+# Install Vercel CLI (if not in setup script)
+npm i -g vercel
+```
+
 ## Commit Guidelines
 
 - Keep commit messages short and descriptive (e.g., `fix form method to get`)
