@@ -643,6 +643,15 @@ function toggleBackButton(){
 // ADD THIS HERE (VERY END OF FILE)
 document.addEventListener("DOMContentLoaded", function () {
     toggleBackButton(); // hide button on step-1
+
+    // Auto-advance to a specific step if ?step= is present in the URL
+    const stepParam = new URLSearchParams(window.location.search).get('step');
+    if (stepParam) {
+        const targetId = 'step-' + stepParam;
+        if (document.getElementById(targetId)) {
+            show(targetId);
+        }
+    }
 });
 
 
