@@ -1,5 +1,6 @@
 .vercel
 screenshots/
+_agent_inbox/
 .env
 .DS_Store
 **/.DS_Store

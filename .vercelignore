@@ -1,0 +1,11 @@
+# Keep secrets and internal docs out of the public deployment.
+.env
+.git
+.github
+.vercel
+screenshots/
+_agent_inbox/
+api_docs/
+*.md
+.DS_Store
+**/.DS_Store
