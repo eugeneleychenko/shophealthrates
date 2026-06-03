@@ -96,6 +96,7 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          GH_PUSH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           send() {
             [ -z "$CHAT_ID" ] && { echo "$1"; return; }
@@ -117,7 +118,8 @@ jobs:
           fi
 
           # 3) Ship it.
-          git push origin HEAD:main || { send "⚠️ Made the change but couldn't push to GitHub — Eugene will take a look."; exit 1; }
+          git push "https://x-access-token:${GH_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:main \
+            || { send "⚠️ Made the change but couldn't push to GitHub — Eugene will take a look."; exit 1; }
 
           rm -rf _agent_inbox            # don't deploy the screenshots
           npm i -g vercel >/dev/null 2>&1
