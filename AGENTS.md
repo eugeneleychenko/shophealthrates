@@ -26,13 +26,16 @@ Static marketing site for **LeoSource Insurance Agency** (shophealthrates.com). 
 
 ## Deployment
 
-Hosted on **Vercel** (project: `vyb/vyb-site`). Deploy with:
+Hosted on **Vercel** — team `vyb` (`team_JRdKsTQV9jopaKxc8wlsdvGz`), project display name `shophealthrates` (`prj_LIvg3Gu0WLw6fhgBAivjIojFR4y9`). Note the linked `.vercel/project.json` still shows the old name `vyb-site` — same project, just renamed. Deploy with:
 
 ```bash
-vercel --prod --yes
+vercel --prod --yes --token $VERCEL_TOKEN
 ```
 
 No build step — Vercel serves static files directly.
+
+- **`.vercelignore`** excludes secrets/internal docs (`.env`, `*.md` incl. this file, `.github`, `screenshots/`, `api_docs/`) from public deploys. **Keep it** — without it, `AGENTS.md` (which contains API keys) and `.env` become publicly fetchable at e.g. `https://shophealthrates.com/AGENTS.md`.
+- **Deployment protection is OFF** (`ssoProtection: null`, set 2026-06-03) — every `*.vercel.app` deployment URL is publicly viewable, not just the custom domain. Re-enable via `PATCH /v9/projects/<id>` with `ssoProtection` if you ever want preview URLs gated again.
 
 ## Development
 
@@ -430,6 +433,70 @@ vercel --prod --yes --token $VERCEL_TOKEN
 # Install Vercel CLI (if not in setup script)
 npm i -g vercel
 ```
+
+## Telegram → Code → Deploy Agent (LIVE — built 2026-06-03)
+
+The client (Mikhail) requests site changes directly in the **"Leosource/ Integrations"** Telegram group and they ship to production automatically — no laptop, no VPS, no human relay.
+
+### Flow
+
+```
+/change <request> in the group (text + optional screenshot)
+  → api/telegram.js          (Vercel serverless webhook — verifies sender, fires dispatch)
+  → GitHub repository_dispatch (type: telegram-change-request)
+  → .github/workflows/telegram-agent.yml (GitHub Actions)
+  → claude-code-action        (reads request + screenshot, edits site, commits to main, pushes)
+  → vercel --prod             (deploys)
+  → bot replies in the group: "✅ Done — <change> is live on shophealthrates.com"
+```
+
+### Triggering
+
+Address the bot explicitly (normal group chatter is ignored):
+- `/change <what to change>` — e.g. `/change make the hero subheadline say "Save Big on Health Insurance"`
+- or `@leosource_bot <what to change>`
+- Attach a screenshot to the same message; the agent reads it as an image (red marks usually flag the target element).
+- If a request is too ambiguous, the bot replies with a clarifying question instead of guessing.
+
+### Key facts
+
+| Thing | Value |
+|-------|-------|
+| Bot | **@leosource_bot** (privacy mode OFF → reads all group messages) |
+| Group | "Leosource/ Integrations", chat id **`-5101729997`** |
+| Webhook | `https://shophealthrates.com/api/telegram` |
+| Webhook code | `api/telegram.js` (thin relay only — no editing logic lives here) |
+| Workflow | `.github/workflows/telegram-agent.yml` |
+| Triggers | `repository_dispatch` (`telegram-change-request`) + `workflow_dispatch` (manual) |
+| GitHub Actions secrets | `TELEGRAM_BOT_TOKEN`, `VERCEL_TOKEN`, `CLAUDE_CODE_OAUTH_TOKEN` |
+| Vercel env (Production) | `TELEGRAM_SECRET`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `GITHUB_TOKEN`, `ALLOWED_CHAT_IDS` |
+| Webhook's `GITHUB_TOKEN` | fine-grained PAT on `shophealthrates`, **Contents: Read & write** |
+| Compute cost | runs on the Claude subscription via `CLAUDE_CODE_OAUTH_TOKEN` (not metered API billing) |
+
+### Manual test (no Telegram, no group spam)
+
+```bash
+gh workflow run telegram-agent.yml --repo eugeneleychenko/shophealthrates \
+  -f request='your change request here'
+gh run watch "$(gh run list --workflow=telegram-agent.yml --limit 1 --json databaseId -q '.[0].databaseId')" --exit-status
+```
+
+Omit `chat_id` and the workflow skips the Telegram reply (echoes instead), so a dry-run won't post in the client group. It still commits + deploys a real change, so revert test edits afterward.
+
+### Gotchas (already fixed in the workflow — do not regress)
+
+- Job needs `permissions: id-token: write` — `claude-code-action` fetches an OIDC token; `contents: write` alone fails with "Could not fetch an OIDC token".
+- The push step authenticates via `https://x-access-token:${GITHUB_TOKEN}@github.com/...`; a bare `git push` fails with "password authentication is not supported".
+- `repository_dispatch`/`workflow_dispatch` only run from the **default branch** — the workflow file must stay on `main`.
+- The webhook's PAT must have **Contents: write**, else the dispatch returns `403 "Resource not accessible by personal access token"`.
+
+### Security
+
+- Only the group (chat `-5101729997`) can trigger changes (allowlist), and every webhook call must carry the `TELEGRAM_SECRET` header.
+- Every change is a git commit by `claude[bot]` → undo with `git revert <sha>`.
+- **Rotate when convenient**: the bot token, Claude OAuth token, and PAT were pasted into a setup chat; the Boberdoo key in this file may have been publicly served on pre-`.vercelignore` deploys.
+
+Full setup/runbook: **`TELEGRAM-AGENT-SETUP.md`**.
 
 ## Commit Guidelines
 
