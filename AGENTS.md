@@ -453,10 +453,13 @@ The client (Mikhail) requests site changes directly in the **"Leosource/ Integra
 ### Triggering
 
 Address the bot explicitly (normal group chatter is ignored):
-- `/change <what to change>` — e.g. `/change make the hero subheadline say "Save Big on Health Insurance"`
-- or `@leosource_bot <what to change>`
+- `/change <edit>` — make a code change + deploy. e.g. `/change make the hero subheadline say "Save Big on Health Insurance"`
+- `/ask <question>` — answer a question about the site/repo (reads code + git history); **no edit, no deploy**. e.g. `/ask where did we add quiz links today?`
+- `@leosource_bot <text>` — "auto": the agent decides from the message whether it's a question or a change.
 - Attach a screenshot to the same message; the agent reads it as an image (red marks usually flag the target element).
-- If a request is too ambiguous, the bot replies with a clarifying question instead of guessing.
+- If a change request is too ambiguous, the bot replies with a clarifying question instead of guessing.
+
+The webhook passes a `mode` hint (`change`/`ask`/`auto`); the workflow classifies question vs. change and, for `ask`, answers via `_agent_inbox/REPLY.txt` and never pushes.
 
 ### Key facts
 
