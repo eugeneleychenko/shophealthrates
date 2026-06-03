@@ -377,22 +377,49 @@ To test the full flow:
 
 ## Claude Code on the Web (Remote Management)
 
-This project is configured for remote management via [claude.ai/code](https://claude.ai/code). No local machine required.
+This project is configured for remote management via [claude.ai/code](https://claude.ai/code). No local machine required — works from phone or any browser.
 
-### Environment
+### How It Was Set Up
 
-- **Cloud environment**: Default Cloud Environment
-- **Repo**: `eugeneleychenko/shophealthrates` (main branch)
-- **Vercel CLI**: Available via `$VERCEL_TOKEN` env var
-- **Deploy command**: `vercel --prod --yes --token $VERCEL_TOKEN`
+1. **GitHub App authorized** — the Claude GitHub App was authorized for `eugeneleychenko/shophealthrates` at [claude.ai/code](https://claude.ai/code). This gives cloud sessions read/write access to the repo (clone, push, create PRs).
+
+2. **Cloud environment configured** — "Default Cloud Environment" with:
+   - **Network access**: Trusted (allows npm registry, GitHub, Vercel, etc.)
+   - **Environment variable**: `VERCEL_TOKEN` — a Vercel Access Token scoped to the **VYB** team (created at `vercel.com/account/tokens`, no expiration). This lets Claude deploy without interactive login.
+   - **Setup script**:
+     ```bash
+     #!/bin/bash
+     npm install
+     npm i -g vercel
+     ```
+     This pre-installs the Vercel CLI so it's available immediately in every new session. The setup script output is cached by Anthropic — it only re-runs when the script changes or the cache expires (~7 days).
+
+3. **AGENTS.md in the repo** — Claude Code reads this file automatically when it clones the repo, giving it full context about the project structure, deployment process, integrations (Boberdoo, ClickFlare, Ringba, Connect Streams), and coding conventions.
+
+### Environment Details
+
+| Setting | Value |
+|---------|-------|
+| Cloud environment | Default Cloud Environment |
+| Repo | `eugeneleychenko/shophealthrates` (main branch) |
+| Network access | Trusted |
+| Env var | `VERCEL_TOKEN` (VYB-scoped, no expiration) |
+| Setup script | `npm install && npm i -g vercel` |
+| Model | Opus 4.8 (configurable per session) |
 
 ### Workflow
 
-1. Copy client request from Telegram
+1. Client sends request in Telegram (text, screenshots, Clarity links)
 2. Open [claude.ai/code](https://claude.ai/code) on phone or browser
-3. Select `shophealthrates` repo and paste the request
-4. Claude edits files, commits, pushes to GitHub, and deploys to Vercel
-5. Confirm back in Telegram
+3. Select `shophealthrates` repo and paste the request (include screenshots if the client sent any — Claude Code web supports image attachments)
+4. Claude edits files, commits, pushes to GitHub, and deploys with `vercel --prod --yes --token $VERCEL_TOKEN`
+5. Verify the change on shophealthrates.com, then confirm back in Telegram
+
+### Maintaining the Setup
+
+- **Vercel token expired/revoked?** Create a new one at `vercel.com/account/tokens` scoped to **VYB**, then update the environment variable in Claude Code web (click the cloud environment icon → edit → update `VERCEL_TOKEN`).
+- **Need to change the setup script?** Same flow — click the cloud environment icon → edit → update the script. The cached environment rebuilds on next session.
+- **New integrations or project context?** Update this AGENTS.md file — Claude reads it at the start of every session.
 
 ### Common Tasks
 
