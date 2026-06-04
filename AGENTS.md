@@ -34,6 +34,8 @@ vercel --prod --yes --token $VERCEL_TOKEN
 
 No build step — Vercel serves static files directly.
 
+- **DNS host**: Namecheap (manages DNS for shophealthrates.com)
+
 - **`.vercelignore`** excludes secrets/internal docs (`.env`, `*.md` incl. this file, `.github`, `screenshots/`, `api_docs/`) from public deploys. **Keep it** — without it, `AGENTS.md` (which contains API keys) and `.env` become publicly fetchable at e.g. `https://shophealthrates.com/AGENTS.md`.
 - **Deployment protection is OFF** (`ssoProtection: null`, set 2026-06-03) — every `*.vercel.app` deployment URL is publicly viewable, not just the custom domain. Re-enable via `PATCH /v9/projects/<id>` with `ssoProtection` if you ever want preview URLs gated again.
 
