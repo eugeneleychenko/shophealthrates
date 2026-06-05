@@ -953,6 +953,18 @@ function submitLead(e) {
         img.src = 'https://leosourceclick.com/cf/cv?click_id=' + encodeURIComponent(subId);
     }
 
+    // Log lead to Sheety via our API (non-blocking)
+    try {
+        navigator.sendBeacon('/api/log-lead', JSON.stringify({
+            click_id: subId,
+            phone: phoneVal,
+            zip: zip,
+            first_name: document.getElementById("firstName").value.trim(),
+            last_name: document.getElementById("lastName").value.trim(),
+            timestamp: new Date().toISOString()
+        }));
+    } catch (_) {}
+
     // Redirect to thank-you page after brief delay for the POST to fire
     setTimeout(function() {
         window.location.href = "thank-you.html?phone=" + encodeURIComponent(phoneVal);

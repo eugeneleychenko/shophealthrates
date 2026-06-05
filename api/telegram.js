@@ -50,6 +50,13 @@ module.exports = async (req, res) => {
   //   /change <edit>   → make a code change + deploy
   //   /ask <question>  → answer a question, no code changes, no deploy
   //   @mention <text>  → "auto": the agent decides whether to answer or change
+  // Handle /diagnose locally — no GitHub Actions needed
+  if (/^\/diagnose\b/i.test(text)) {
+    const arg = text.replace(/^\/diagnose(@\w+)?/i, "").trim();
+    await handleDiagnose(chatId, arg);
+    return res.status(200).send("diagnose handled");
+  }
+
   let mode = null;
   if (/^\/change\b/i.test(text)) mode = "change";
   else if (/^\/(ask|q)\b/i.test(text)) mode = "ask";
@@ -124,4 +131,73 @@ async function tgSend(chatId, text) {
   } catch (_) {
     /* best effort — the Action will still report the outcome */
   }
+}
+
+// /diagnose command — query lead logs from Sheety.co
+async function handleDiagnose(chatId, arg) {
+  const SHEETY_URL = process.env.SHEETY_URL;
+  if (!SHEETY_URL) {
+    await tgSend(chatId, "⚠️ SHEETY_URL not configured.");
+    return;
+  }
+
+  let rows = [];
+  try {
+    const resp = await fetch(SHEETY_URL);
+    const json = await resp.json();
+    rows = json.sheet1 || json.sheet1S || json.sheet1s || [];
+  } catch (err) {
+    await tgSend(chatId, "❌ Failed to fetch logs: " + err.message);
+    return;
+  }
+
+  // /diagnose health — check ClickFlare postback URL
+  if (arg === "health") {
+    let status = "❌ unreachable";
+    try {
+      const r = await fetch("https://leosourceclick.com/cf/cv?click_id=healthcheck&payout=0&txid=healthcheck");
+      status = r.ok ? "✅ responding (" + r.status + ")" : "⚠️ returned " + r.status;
+    } catch (_) {}
+    await tgSend(chatId, "ClickFlare postback URL: " + status);
+    return;
+  }
+
+  // /diagnose recent — last 10 entries
+  if (arg === "recent" || !arg) {
+    const last10 = rows.slice(-10).reverse();
+    if (last10.length === 0) {
+      await tgSend(chatId, "📋 No lead logs found yet.");
+      return;
+    }
+    const lines = ["📋 Last " + last10.length + " logged leads:", ""];
+    last10.forEach(function(r) {
+      const hasId = r.clickId && r.clickId.length > 5 ? "✅" : "❌ no click_id";
+      lines.push("• " + (r.timestamp || "?") + " | " + (r.event || "?") + " | " + hasId + " | " + (r.rawQuery || ""));
+    });
+    await tgSend(chatId, lines.join("\n"));
+    return;
+  }
+
+  // /diagnose <phone_last4_or_search> — search by phone digits or any text
+  const query = arg.replace(/\D/g, "") || arg;
+  const matches = rows.filter(function(r) {
+    const raw = (r.rawQuery || "") + (r.clickId || "") + (r.txid || "");
+    return raw.includes(query);
+  });
+
+  if (matches.length === 0) {
+    await tgSend(chatId, '🔍 No logs found matching "' + arg + '".');
+    return;
+  }
+
+  const lines = ["🔍 Found " + matches.length + ' log(s) for "' + arg + '":', ""];
+  matches.slice(-5).forEach(function(r) {
+    const hasId = r.clickId && r.clickId.length > 5 ? "✅ " + r.clickId.slice(0, 12) + "..." : "❌ no click_id";
+    lines.push("• " + (r.timestamp || "?"));
+    lines.push("  Event: " + (r.event || "?"));
+    lines.push("  Click ID: " + hasId);
+    lines.push("  Details: " + (r.rawQuery || "none"));
+    lines.push("");
+  });
+  await tgSend(chatId, lines.join("\n"));
 }
