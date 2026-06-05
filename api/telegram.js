@@ -63,6 +63,14 @@ module.exports = async (req, res) => {
   else if (botUser && text.includes("@" + botUser)) mode = "auto";
   if (!mode) return res.status(200).send("not addressed");
 
+  // Fast-path: @mention questions about lead status are answered directly from
+  // the Sheety log without spinning up GitHub Actions. This avoids the "I can't
+  // query directly" response Claude Code gives when it lacks the env vars.
+  if (mode === "auto" && isLeadStatusQuestion(text)) {
+    await handleDiagnose(chatId, "recent");
+    return res.status(200).send("lead-status handled");
+  }
+
   const request = text
     .replace(/^\/(change|ask|q)(@\w+)?/i, "")
     .split("@" + botUser).join("")
@@ -133,6 +141,20 @@ async function tgSend(chatId, text) {
   }
 }
 
+// Detect whether an @mention message is asking about lead status so we can
+// answer directly from Sheety instead of going through GitHub Actions.
+function isLeadStatusQuestion(text) {
+  const t = text.toLowerCase();
+  return (
+    /lead.{0,30}(post|came|come|submitt|sent|went|go|through|correct|work|fire|log|track)/i.test(t) ||
+    /did.{0,20}lead/i.test(t) ||
+    /(last|latest|recent|new).{0,20}lead/i.test(t) ||
+    /lead.{0,20}(last|latest|recent)/i.test(t) ||
+    /postback.{0,30}(fire|work|sent|correct)/i.test(t) ||
+    /(click.*id|click_id).{0,30}(present|there|missing|found|empty)/i.test(t)
+  );
+}
+
 // /diagnose command — query lead logs from Sheety.co
 async function handleDiagnose(chatId, arg) {
   const SHEETY_URL = process.env.SHEETY_URL;
@@ -162,17 +184,33 @@ async function handleDiagnose(chatId, arg) {
     return;
   }
 
-  // /diagnose recent — last 10 entries
+  // /diagnose recent — last 10 entries, with a clear verdict on the latest lead
   if (arg === "recent" || !arg) {
     const last10 = rows.slice(-10).reverse();
     if (last10.length === 0) {
       await tgSend(chatId, "📋 No lead logs found yet.");
       return;
     }
-    const lines = ["📋 Last " + last10.length + " logged leads:", ""];
+
+    // Lead the response with a clear verdict on the most recent lead
+    const newest = last10[0];
+    const hasClickId = newest.clickId && newest.clickId.length > 5;
+    const verdict = hasClickId
+      ? "✅ Latest lead posted correctly — ClickFlare click_id present, postback should have fired."
+      : "⚠️ Latest lead is missing a ClickFlare click_id — postback will NOT be attributed in ClickFlare.";
+
+    const lines = [
+      verdict,
+      "Time: " + (newest.timestamp || "?"),
+      "Event: " + (newest.event || "?"),
+      "Click ID: " + (hasClickId ? newest.clickId.slice(0, 20) + "..." : "❌ empty"),
+      "Raw: " + (newest.rawQuery || "none"),
+      "",
+      "📋 Last " + last10.length + " leads:",
+    ];
     last10.forEach(function(r) {
-      const hasId = r.clickId && r.clickId.length > 5 ? "✅" : "❌ no click_id";
-      lines.push("• " + (r.timestamp || "?") + " | " + (r.event || "?") + " | " + hasId + " | " + (r.rawQuery || ""));
+      const hasId = r.clickId && r.clickId.length > 5 ? "✅" : "❌";
+      lines.push("• " + (r.timestamp || "?") + " " + hasId + " " + (r.event || "?"));
     });
     await tgSend(chatId, lines.join("\n"));
     return;
