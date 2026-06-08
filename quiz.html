@@ -446,13 +446,13 @@
                     </div>
                 </div>
 
-                <p class="disclaimer">By submitting your information and clicking the button above, you represent that you are at least 18 years old and provide your express written consent to be contacted by Leo Source Insurance and/or its licensed partner agents at the number and email you provided (including any wireless number) regarding health insurance products, through the use of automated telephone dialing systems, pre-recorded messages, and/or text messages. Message and data rates may apply. Your consent is not a condition of purchase. This program is subject to our <a href="privacy.html" target="_blank">Privacy Policy</a> and <a href="term.html" target="_blank">Terms of Use</a>.</p>
-
                 <div class="button-col">
                     <p class="btn-secure-text"><img src="images/lock-icon.webp" alt="icon">Secure 256-Bit Encrypted Connection</p>
-                    <button class="common-btn" onclick="show('step-7')">Continue <img src="images/btn-arrow.webp" alt="icon"></button>
+                    <button class="common-btn" id="contactContinueBtn" disabled onclick="show('step-7')">Continue <img src="images/btn-arrow.webp" alt="icon"></button>
                 </div>
                 <a href="javascript:void(0)" class="btn-back" onclick="goBack()"><img src="images/back-arrow.webp" alt="">Back</a>
+
+                <p class="disclaimer">By submitting your information and clicking the button above, you represent that you are at least 18 years old and provide your express written consent to be contacted by Leo Source Insurance and/or its licensed partner agents at the number and email you provided (including any wireless number) regarding health insurance products, through the use of automated telephone dialing systems, pre-recorded messages, and/or text messages. Message and data rates may apply. Your consent is not a condition of purchase. This program is subject to our <a href="privacy.html" target="_blank">Privacy Policy</a> and <a href="term.html" target="_blank">Terms of Use</a>.</p>
             </div>
         </div>
 
@@ -854,6 +854,8 @@ const phoneField = document.getElementById("phoneField");
 
 const address = document.getElementById("address");
 const submitBtn = document.getElementById("submitBtn");
+const contactContinueBtn = document.getElementById("contactContinueBtn");
+const birthDateTime = document.getElementById("birthDateTime");
 
 function checkForm(){
 
@@ -862,6 +864,7 @@ function checkForm(){
     const mail   = email.value.trim() !== "";
     const phoneV = phone.value.trim() !== "";
     const addr   = address.value.trim() !== "";
+    const dob    = birthDateTime.value.trim() !== "";
 
     // SHOW FIELDS
     if(first && last){
@@ -876,8 +879,11 @@ function checkForm(){
         addressField.classList.add("show");
     }
 
-    // ENABLE BUTTON
-     submitBtn.disabled = !(first && last && mail && phoneV && addr);
+    // ENABLE CONTACT CONTINUE BUTTON
+    contactContinueBtn.disabled = !(first && last && mail && phoneV && addr && dob);
+
+    // ENABLE FINAL SUBMIT BUTTON
+    submitBtn.disabled = !(first && last && mail && phoneV && addr);
 
 }
 
@@ -886,6 +892,7 @@ lastName.addEventListener("input", checkForm);
 email.addEventListener("input", checkForm);
 phone.addEventListener("input", checkForm);
 address.addEventListener("input", checkForm);
+birthDateTime.addEventListener("input", checkForm);
 
 
 //PHONE FIELD
