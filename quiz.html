@@ -99,11 +99,12 @@
             </div>
         </div>
         
+        <!-- COMMENTED OUT: eligibility/age question removed per Eugene 2026-06-08
         <div class="screen active" id="step-1" data-wdth="20">
             <div class="inner_section">
             	<p class="step_subheading">Eligibility</p>
             	<h2 class="step_title">What age group are you in?</h2>
-                
+
                 <div class="option-box">
                     <label class="option-col" onclick="show('step-2')">
                         <input type="radio" name="eligible">
@@ -128,20 +129,21 @@
                                 </div>
                             </div>
                         </div>
-                    </label>  
-				</div> 
-                
+                    </label>
+				</div>
+
                 <a href="javascript:void(0)" class="btn-back" onclick="goBack()"><img src="images/back-arrow.webp" alt="">Back</a>
 			</div>
         </div>
+        -->
         
-        <div class="screen" id="step-2" data-wdth="30">
+        <div class="screen active" id="step-2" data-wdth="30" data-stepnum="1">
             <div class="inner_section">
             	<p class="step_subheading">Timing</p>
             	<h2 class="step_title">When do you need coverage?</h2>
-                
+
                 <div class="option-box">
-                    <label class="option-col" onclick="show('step-3')">
+                    <label class="option-col" onclick="show('step-5')">
                         <input type="radio" name="time">
                          <div class="desc-opt">
                          	<div class="desc-opt-left">
@@ -152,7 +154,7 @@
                             </div>
                         </div>
                     </label>
-                    <label class="option-col" onclick="show('step-3')">
+                    <label class="option-col" onclick="show('step-5')">
                         <input type="radio" name="time">
                          <div class="desc-opt">
                          	<div class="desc-opt-left">
@@ -163,7 +165,7 @@
                             </div>
                         </div>
                     </label>
-                    <label class="option-col" onclick="show('step-3')">
+                    <label class="option-col" onclick="show('step-5')">
                         <input type="radio" name="time">
                          <div class="desc-opt">
                          	<div class="desc-opt-left">
@@ -173,18 +175,19 @@
                                 </div>
                             </div>
                         </div>
-                    </label> 
-				</div> 
-                
+                    </label>
+				</div>
+
                 <a href="javascript:void(0)" class="btn-back" onclick="goBack()"><img src="images/back-arrow.webp" alt="">Back</a>
 			</div>
         </div>
         
+        <!-- COMMENTED OUT: duration question removed per Eugene 2026-06-08
         <div class="screen" id="step-3" data-wdth="40">
             <div class="inner_section">
             	<p class="step_subheading">Duration</p>
             	<h2 class="step_title">How long will you need coverage?</h2>
-                
+
                 <div class="option-box">
                     <label class="option-col" onclick="show('step-4')">
                         <input type="radio" name="duration">
@@ -209,7 +212,7 @@
                             </div>
                             <p class="duration-opt-text duration-yellow-bg">Short-term</p>
                         </div>
-                    </label> 
+                    </label>
                     <label class="option-col" onclick="show('step-4')">
                         <input type="radio" name="duration">
                          <div class="desc-opt">
@@ -221,19 +224,21 @@
                                 </div>
                             </div>
                         </div>
-                    </label> 
-				</div> 
-                
+                    </label>
+				</div>
+
                 <a href="javascript:void(0)" class="btn-back" onclick="goBack()"><img src="images/back-arrow.webp" alt="">Back</a>
 			</div>
         </div>
+        -->
         
+        <!-- COMMENTED OUT: life event question (step 4) removed per Eugene 2026-06-08
         <div class="screen" id="step-4" data-wdth="50">
-            <div class="inner_section">            	                                
+            <div class="inner_section">
                 <p class="step_subheading">Life Event</p>
             	<h2 class="step_title">What brings you here today?</h2>
                 <p class="select-all-apply">* Select all that apply</p>
-                
+
                 <div class="option-box">
                     <label class="option-col">
                         <input type="checkbox" name="lifevent">
@@ -243,7 +248,7 @@
                                 <p>Lost my coverage</p>
                             </div>
                         </div>
-                    </label>                    
+                    </label>
                     <label class="option-col">
                         <input type="checkbox" name="lifevent">
                          <div class="desc-opt">
@@ -252,7 +257,7 @@
                                 <p>Started or left a job</p>
                             </div>
                         </div>
-                    </label>                    
+                    </label>
                     <label class="option-col">
                         <input type="checkbox" name="lifevent">
                          <div class="desc-opt">
@@ -261,7 +266,7 @@
                                 <p>Moved to a new state</p>
                             </div>
                         </div>
-                    </label> 
+                    </label>
                     <label class="option-col">
                         <input type="checkbox" name="lifevent">
                          <div class="desc-opt">
@@ -279,24 +284,25 @@
                                 <p>None of these apply</p>
                             </div>
                         </div>
-                    </label> 
+                    </label>
 				</div>
-                                        
+
                 <div class="button-col">
                 	<p class="btn-secure-text"><img src="images/lock-icon.webp" alt="icon">Secure 256-Bit Encrypted Connection</p>
                 	<button class="common-btn" onclick="show('step-5')">Continue <img src="images/btn-arrow.webp" alt="icon"></button>
                 </div>
-                <a href="javascript:void(0)" class="btn-back" onclick="goBack()"><img src="images/back-arrow.webp" alt="">Back</a>                
+                <a href="javascript:void(0)" class="btn-back" onclick="goBack()"><img src="images/back-arrow.webp" alt="">Back</a>
             </div>
         </div>
+        -->
         
-        <div class="screen" id="step-5" data-wdth="60">
+        <div class="screen" id="step-5" data-wdth="60" data-stepnum="2">
             <div class="inner_section">
             	<p class="step_subheading">Household</p>
             	<h2 class="step_title">What’s your household size?</h2>
                 
                 <div class="option-box house-size-option">
-                    <label class="option-col" onclick="show('step-6')">
+                    <label class="option-col" onclick="show('step-contact')">
                         <input type="radio" name="house">
                          <div class="desc-opt">
                          	<div class="desc-opt-left">
@@ -306,7 +312,7 @@
                             </div>
                         </div>
                     </label>
-                    <label class="option-col" onclick="show('step-6')">
+                    <label class="option-col" onclick="show('step-contact')">
                         <input type="radio" name="house">
                          <div class="desc-opt">
                          	<div class="desc-opt-left">
@@ -316,7 +322,7 @@
                             </div>
                         </div>
                     </label> 
-                    <label class="option-col" onclick="show('step-6')">
+                    <label class="option-col" onclick="show('step-contact')">
                         <input type="radio" name="house">
                          <div class="desc-opt">
                          	<div class="desc-opt-left">
@@ -326,7 +332,7 @@
                             </div>
                         </div>
                     </label>
-                    <label class="option-col" onclick="show('step-6')">
+                    <label class="option-col" onclick="show('step-contact')">
                         <input type="radio" name="house">
                          <div class="desc-opt">
                          	<div class="desc-opt-left">
@@ -336,7 +342,7 @@
                             </div>
                         </div>
                     </label>
-                    <label class="option-col" onclick="show('step-6')">
+                    <label class="option-col" onclick="show('step-contact')">
                         <input type="radio" name="house">
                          <div class="desc-opt">
                          	<div class="desc-opt-left">
@@ -352,11 +358,12 @@
 			</div>
         </div>
         
+        <!-- COMMENTED OUT: medical usage question removed per Eugene 2026-06-08
         <div class="screen" id="step-6" data-wdth="70">
             <div class="inner_section">
             	<p class="step_subheading">Medical Usage</p>
             	<h2 class="step_title">How often do you visit the doctor?</h2>
-                
+
                 <div class="option-box">
                     <label class="option-col" onclick="show('step-7')">
                         <input type="radio" name="doctor">
@@ -383,7 +390,7 @@
                             </div>
                             <p class="duration-opt-text duration-yellow-bg">Mid usage</p>
                         </div>
-                    </label> 
+                    </label>
                     <label class="option-col" onclick="show('step-7')">
                         <input type="radio" name="doctor">
                          <div class="desc-opt">
@@ -396,14 +403,58 @@
                             </div>
                             <p class="duration-opt-text duration-orange-bg">High usage</p>
                         </div>
-                    </label> 
-				</div> 
-                
+                    </label>
+				</div>
+
                 <a href="javascript:void(0)" class="btn-back" onclick="goBack()"><img src="images/back-arrow.webp" alt="">Back</a>
 			</div>
         </div>
+        -->
+
+        <!-- NEW: Contact info screen — inserted before income question per Eugene 2026-06-08 -->
+        <div class="screen" id="step-contact" data-wdth="70" data-stepnum="3">
+            <div class="inner_section">
+                <p class="step_subheading">About You</p>
+                <h2 class="step_title">Let's get your information</h2>
+
+                <div class="form-field-box">
+                    <div class="field_row">
+                        <div class="field show">
+                            <label>First Name</label>
+                            <input type="text" id="firstName" placeholder="First Name" class="input-fld">
+                        </div>
+                        <div class="field show">
+                            <label>Last Name</label>
+                            <input type="text" id="lastName" placeholder="Last Name" class="input-fld">
+                        </div>
+                    </div>
+                    <div class="field show" id="emailField">
+                        <label>Email Address</label>
+                        <input type="email" id="email" placeholder="test@gmail.com" class="input-fld">
+                    </div>
+                    <div class="formfield show">
+                        <label>Date Of Birth</label>
+                        <input type="tel" class="input-fld birthfield" placeholder="MM / DD / YYYY" id="birthDateTime">
+                    </div>
+                    <div class="field show" id="addressField">
+                        <label>Street Address</label>
+                        <input type="text" id="address" placeholder="123 Main St" class="input-fld">
+                    </div>
+                    <div class="field show" id="phoneField">
+                        <label>Phone Number</label>
+                        <input type="tel" id="phone" placeholder="(555) 000-0000" class="input-fld">
+                    </div>
+                </div>
+
+                <div class="button-col">
+                    <p class="btn-secure-text"><img src="images/lock-icon.webp" alt="icon">Secure 256-Bit Encrypted Connection</p>
+                    <button class="common-btn" onclick="show('step-7')">Continue <img src="images/btn-arrow.webp" alt="icon"></button>
+                </div>
+                <a href="javascript:void(0)" class="btn-back" onclick="goBack()"><img src="images/back-arrow.webp" alt="">Back</a>
+            </div>
+        </div>
         
-        <div class="screen" id="step-7" data-wdth="80">
+        <div class="screen" id="step-7" data-wdth="80" data-stepnum="4">
             <div class="inner_section">            	                                
                 <p class="step_subheading">income</p>
             	<h2 class="step_title">Household gross monthly income?</h2>
@@ -423,7 +474,7 @@
             </div>
         </div>
                 
-        <div class="screen" id="step-8" data-wdth="90">
+        <div class="screen" id="step-8" data-wdth="90" data-stepnum="5">
             <div class="inner_section">
             	<p class="step_subheading">About You</p>
             	<h2 class="step_title">Now let's find you the best prices!</h2>
@@ -453,22 +504,24 @@
                     </label>  
 				</div> 
                 
+                <!-- COMMENTED OUT: DOB moved to step-contact per Eugene 2026-06-08
                 <div class="form-field-box">
-                    <div class="formfield">                        
+                    <div class="formfield">
                         <label>Date Of Birth</label>
                         <input type="tel" class="input-fld birthfield" placeholder="MM / DD / YYYY" id="birthDateTime">
                     </div>
                 </div>
-                                        
+                -->
+
                 <div class="button-col">
                 	<p class="btn-secure-text"><img src="images/lock-icon.webp" alt="icon">Secure 256-Bit Encrypted Connection</p>
                 	<button class="common-btn" onclick="show('step-9')">Continue <img src="images/btn-arrow.webp" alt="icon"></button>
                 </div>
-                <a href="javascript:void(0)" class="btn-back" onclick="goBack()"><img src="images/back-arrow.webp" alt="">Back</a> 
+                <a href="javascript:void(0)" class="btn-back" onclick="goBack()"><img src="images/back-arrow.webp" alt="">Back</a>
 			</div>
         </div>
-        
-        <div class="screen" id="step-9" data-wdth="95">
+
+        <div class="screen" id="step-9" data-wdth="95" data-stepnum="6">
             <div class="inner_section">
             	<p class="step_subheading">About You</p>
             	<h2 class="step_title">Do you use tobacco products?</h2>
@@ -502,42 +555,44 @@
 			</div>
         </div>
         
-        <div class="screen" id="step-10" data-wdth="100">
+        <div class="screen" id="step-10" data-wdth="100" data-stepnum="7">
             <div class="inner_section">
             	<p class="step_subheading">YOUR PROFILE</p>
-            	<h2 class="step_title">Where should we send your free quotes?</h2>
-                
+            	<h2 class="step_title">Ready to see your quotes?</h2>
+
                 <form id="leadForm" action="thank-you.html" method="get" onsubmit="return submitLead(event)">
-                
+
+                <!-- COMMENTED OUT: contact fields moved to step-contact per Eugene 2026-06-08
                 <div class="form-field-box">
                     <div class="field_row">
                         <div class="field show">
                             <label>First Name</label>
                             <input type="text" id="firstName" placeholder="First Name" class="input-fld">
                         </div>
-                
+
                         <div class="field show">
                             <label>Last Name</label>
                             <input type="text" id="lastName" placeholder="Last Name" class="input-fld">
                         </div>
                     </div>
-    
+
                     <div class="field" id="emailField">
                         <label>Email Address</label>
                         <input type="email" id="email" placeholder="test@gmail.com" class="input-fld">
                     </div>
-                
+
                     <div class="field" id="phoneField">
                         <label>Phone Number</label>
                         <input type="tel" id="phone" placeholder="(555) 000-0000" class="input-fld">
                     </div>
-                
+
                     <div class="field" id="addressField">
                         <label>Street Address</label>
                         <input type="text" id="address" placeholder="123 Main St" class="input-fld">
                     </div>
                 </div>
-                
+                -->
+
                 <p class="disclaimer">By submitting your information and clicking the button above, you represent that you are at least 18 years old and provide your express written consent to be contacted by Leo Source Insurance and/or its licensed partner agents at the number and email you provided (including any wireless number) regarding health insurance products, through the use of automated telephone dialing systems, pre-recorded messages, and/or text messages. Message and data rates may apply. Your consent is not a condition of purchase. This program is subject to our  <a href="privacy.html" target="_blank">Privacy Policy</a> and <a href="term.html" target="_blank">Terms of Use</a>.</p>
                 
                 
@@ -665,9 +720,9 @@ function progress(){
         const progressVal = activeStep.getAttribute('data-wdth');
         document.querySelector(".prgress-1").style.width = progressVal + "%";
 		
-		// GET CURRENT STEP NUMBER
-        const stepId = activeStep.id;      // example: step-3
-        const stepNo = stepId.split('-')[1];
+		// GET CURRENT STEP NUMBER (prefer data-stepnum override for non-numeric IDs)
+        const stepId = activeStep.id;
+        const stepNo = activeStep.getAttribute('data-stepnum') || stepId.split('-')[1];
 
         // UPDATE STEP COUNT TEXT
         document.querySelector(".step-count-no").innerText = stepNo;
