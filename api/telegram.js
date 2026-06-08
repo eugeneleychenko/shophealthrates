@@ -122,12 +122,25 @@ module.exports = async (req, res) => {
     return res.status(200).send("dispatch failed: " + body);
   }
 
-  const ack = mode === "change"
-    ? "👍 On it — making the change and deploying. I'll confirm here when it's live."
-    : "👀 On it — looking into this now, I'll reply here shortly.";
-  await tgSend(chatId, ack);
+  await tgReact(chatId, msg.message_id, "👀");
   return res.status(200).send("dispatched");
 };
+
+async function tgReact(chatId, messageId, emoji) {
+  try {
+    await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/setMessageReaction`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        message_id: messageId,
+        reaction: [{ type: "emoji", emoji }],
+      }),
+    });
+  } catch (_) {
+    /* best effort — the Action will still report the outcome */
+  }
+}
 
 async function tgSend(chatId, text) {
   try {

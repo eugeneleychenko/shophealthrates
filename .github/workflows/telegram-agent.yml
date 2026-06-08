@@ -145,6 +145,6 @@ jobs:
 
           rm -rf _agent_inbox            # don't deploy the screenshots
           npm i -g vercel >/dev/null 2>&1
-          URL=$(vercel deploy --prod --yes --token "$VERCEL_TOKEN" 2>/dev/null | tail -n1)
+          vercel deploy --prod --yes --token "$VERCEL_TOKEN" >/dev/null 2>&1 || true
           COMMIT=$(git log -1 --pretty=%s)
-          send "✅ Done — \"$COMMIT\" is live on https://shophealthrates.com"$'\n'"(deploy: $URL)"
+          send "✅ Done — \"$COMMIT\" is live on https://shophealthrates.com"
