@@ -564,12 +564,18 @@ MAIN CSS START
 .dob-row {
     display: flex;
     gap: 10px;
+    width: 100%;
+    clear: both;
     }
 .dob-select {
     flex: 1;
+    min-width: 0;
     appearance: auto;
-    -webkit-appearance: auto;
+    -webkit-appearance: menulist;
     cursor: pointer;
+    padding: 0 10px;
+    color: #000;
+    background-color: #fff;
     }
 	
 .select-flds{
