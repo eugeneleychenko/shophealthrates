@@ -434,7 +434,29 @@
                     </div>
                     <div class="formfield show">
                         <label>Date Of Birth</label>
-                        <input type="tel" class="input-fld birthfield" placeholder="MM / DD / YYYY" id="birthDateTime">
+                        <div class="dob-row">
+                            <select id="dobMonth" class="input-fld dob-select">
+                                <option value="" disabled selected>Month</option>
+                                <option value="01">January</option>
+                                <option value="02">February</option>
+                                <option value="03">March</option>
+                                <option value="04">April</option>
+                                <option value="05">May</option>
+                                <option value="06">June</option>
+                                <option value="07">July</option>
+                                <option value="08">August</option>
+                                <option value="09">September</option>
+                                <option value="10">October</option>
+                                <option value="11">November</option>
+                                <option value="12">December</option>
+                            </select>
+                            <select id="dobDay" class="input-fld dob-select">
+                                <option value="" disabled selected>Day</option>
+                            </select>
+                            <select id="dobYear" class="input-fld dob-select">
+                                <option value="" disabled selected>Year</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="field show" id="addressField">
                         <label>Street Address</label>
@@ -853,47 +875,24 @@ jQuery(document).on("input", ".phone", function () {
 });
 
 
-const input = document.getElementById("birthDateTime");
-
-input.addEventListener("input", () => {
-  let raw = input.value.replace(/[^0-9APMapm]/g, "").toUpperCase();
-
-  let numbers = raw.match(/\d+/g) || [];
-  let letters = raw.match(/[APM]+/g) || [];
-
-  let datePart = numbers[0] || "";
-  let timePart = numbers[1] || "";
-
-  // ---- DATE ----
-  let mm = datePart.substring(0, 2);
-  let dd = datePart.substring(2, 4);
-  let yyyy = datePart.substring(4, 8);
-
-  if (mm && parseInt(mm) > 12) mm = "12";
-  if (dd && parseInt(dd) > 31) dd = "31";
-
-  let formatted = "";
-  if (mm) formatted += mm;
-  if (dd) formatted += " / " + dd;
-  if (yyyy) formatted += " / " + yyyy;
-
-  // ---- TIME ----
-  let hh = timePart.substring(0, 2);
-  let min = timePart.substring(2, 4);
-
-  if (hh && parseInt(hh) > 12) hh = "12";
-  if (min && parseInt(min) > 59) min = "59";
-
-  if (hh) formatted += " " + hh;
-  if (min) formatted += ":" + min;
-
-  // ---- AM / PM ----
-  if (letters[0]) {
-    formatted += letters[0].startsWith("P") ? " PM" : " AM";
-  }
-
-  input.value = formatted.trim();
-});
+// Populate DOB dropdowns
+(function() {
+    var daySelect = document.getElementById("dobDay");
+    var yearSelect = document.getElementById("dobYear");
+    for (var d = 1; d <= 31; d++) {
+        var opt = document.createElement("option");
+        opt.value = d < 10 ? "0" + d : "" + d;
+        opt.textContent = d;
+        daySelect.appendChild(opt);
+    }
+    var currentYear = new Date().getFullYear();
+    for (var y = currentYear; y >= currentYear - 100; y--) {
+        var opt = document.createElement("option");
+        opt.value = "" + y;
+        opt.textContent = y;
+        yearSelect.appendChild(opt);
+    }
+})();
 
 
 </script>
@@ -913,7 +912,9 @@ const phoneField = document.getElementById("phoneField");
 const address = document.getElementById("address");
 const submitBtn = document.getElementById("submitBtn");
 const contactContinueBtn = document.getElementById("contactContinueBtn");
-const birthDateTime = document.getElementById("birthDateTime");
+const dobMonth = document.getElementById("dobMonth");
+const dobDay = document.getElementById("dobDay");
+const dobYear = document.getElementById("dobYear");
 
 function checkForm(){
 
@@ -922,7 +923,7 @@ function checkForm(){
     const mail   = email.value.trim() !== "";
     const phoneV = phone.value.trim() !== "";
     const addr   = address.value.trim() !== "";
-    const dob    = birthDateTime.value.trim() !== "";
+    const dob    = dobMonth.value !== "" && dobDay.value !== "" && dobYear.value !== "";
 
     // SHOW FIELDS
     if(first && last){
@@ -950,7 +951,9 @@ lastName.addEventListener("input", checkForm);
 email.addEventListener("input", checkForm);
 phone.addEventListener("input", checkForm);
 address.addEventListener("input", checkForm);
-birthDateTime.addEventListener("input", checkForm);
+dobMonth.addEventListener("change", checkForm);
+dobDay.addEventListener("change", checkForm);
+dobYear.addEventListener("change", checkForm);
 
 
 //PHONE FIELD
@@ -996,9 +999,8 @@ function submitLead(e) {
     var urlParams = new URLSearchParams(window.location.search);
     var zip = urlParams.get("zip") || "60610";
 
-    // Get DOB from step 8 — convert "MM / DD / YYYY" to "MM/DD/YYYY"
-    var dobRaw = document.getElementById("birthDateTime").value.trim();
-    var dob = dobRaw.replace(/\s*\/\s*/g, "/");
+    // Build DOB from dropdowns as MM/DD/YYYY
+    var dob = document.getElementById("dobMonth").value + "/" + document.getElementById("dobDay").value + "/" + document.getElementById("dobYear").value;
 
     // Get phone digits only
     var phoneVal = document.getElementById("phone").value.replace(/\D/g, "");

@@ -142,7 +142,7 @@ jobs:
           # 4) Ship it — rebase on latest main in case someone pushed while we worked.
           git fetch origin main
           git rebase origin/main || { send "⚠️ Made the change but hit a merge conflict — Eugene will take a look."; exit 1; }
-          git push "**************************************************/${GITHUB_REPOSITORY}.git" HEAD:main \
+          git push "https://x-access-token:${GH_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:main \
             || { send "⚠️ Made the change but couldn't push to GitHub — Eugene will take a look."; exit 1; }
 
           rm -rf _agent_inbox            # don't deploy the screenshots

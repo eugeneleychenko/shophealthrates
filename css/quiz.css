@@ -561,6 +561,16 @@ MAIN CSS START
     background: url(../images/calender-icn.webp) no-repeat right 16px center;
     background-size: 29px;
 	}
+.dob-row {
+    display: flex;
+    gap: 10px;
+    }
+.dob-select {
+    flex: 1;
+    appearance: auto;
+    -webkit-appearance: auto;
+    cursor: pointer;
+    }
 	
 .select-flds{
     background: url(../images/down-arrow.webp)#fff no-repeat center right 15px;
