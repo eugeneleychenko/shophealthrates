@@ -457,22 +457,80 @@
         </div>
 
         <div class="screen" id="step-7" data-wdth="80" data-stepnum="4">
-            <div class="inner_section">            	                                
+            <div class="inner_section">
                 <p class="step_subheading">income</p>
-            	<h2 class="step_title">Household gross monthly income?</h2>
-                
-                <div class="form-field-box">
-                    <div class="formfield">                        
-                        <label>Monthly Income</label>
-                        <input type="tel" class="input-fld monthly-income-field" placeholder="Enter monthly Income" id="income">
-                    </div>
+            	<h2 class="step_title">Annual Pre-Tax Income?</h2>
+
+                <div class="option-box">
+                    <label class="option-col" onclick="show('step-8')">
+                        <input type="radio" name="income" value="$100,001-150,000+">
+                        <div class="desc-opt">
+                            <div class="desc-opt-left">
+                                <span class="opt-rad"></span>
+                                <div class="desc-opt-content">
+                                    <p>$100,001-150,000+</p>
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+                    <label class="option-col" onclick="show('step-8')">
+                        <input type="radio" name="income" value="$75,001-100,000">
+                        <div class="desc-opt">
+                            <div class="desc-opt-left">
+                                <span class="opt-rad"></span>
+                                <div class="desc-opt-content">
+                                    <p>$75,001-100,000</p>
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+                    <label class="option-col" onclick="show('step-8')">
+                        <input type="radio" name="income" value="$60,001-75,000">
+                        <div class="desc-opt">
+                            <div class="desc-opt-left">
+                                <span class="opt-rad"></span>
+                                <div class="desc-opt-content">
+                                    <p>$60,001-75,000</p>
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+                    <label class="option-col" onclick="show('step-8')">
+                        <input type="radio" name="income" value="$50,001-60,000">
+                        <div class="desc-opt">
+                            <div class="desc-opt-left">
+                                <span class="opt-rad"></span>
+                                <div class="desc-opt-content">
+                                    <p>$50,001-60,000</p>
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+                    <label class="option-col" onclick="show('step-8')">
+                        <input type="radio" name="income" value="$40,001-50,000">
+                        <div class="desc-opt">
+                            <div class="desc-opt-left">
+                                <span class="opt-rad"></span>
+                                <div class="desc-opt-content">
+                                    <p>$40,001-50,000</p>
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+                    <label class="option-col" onclick="show('step-8')">
+                        <input type="radio" name="income" value="$0-40,000">
+                        <div class="desc-opt">
+                            <div class="desc-opt-left">
+                                <span class="opt-rad"></span>
+                                <div class="desc-opt-content">
+                                    <p>$0-40,000</p>
+                                </div>
+                            </div>
+                        </div>
+                    </label>
                 </div>
-                                        
-                <div class="button-col">
-                	<p class="btn-secure-text"><img src="images/lock-icon.webp" alt="icon">Secure 256-Bit Encrypted Connection</p>
-                	<button class="common-btn" onclick="show('step-8')">Continue <img src="images/btn-arrow.webp" alt="icon"></button>
-                </div>
-                <a href="javascript:void(0)" class="btn-back" onclick="goBack()"><img src="images/back-arrow.webp" alt="">Back</a>                
+
+                <a href="javascript:void(0)" class="btn-back" onclick="goBack()"><img src="images/back-arrow.webp" alt="">Back</a>
             </div>
         </div>
                 
@@ -960,7 +1018,8 @@ function submitLead(e) {
     });
 
     // Get income from step 7
-    var incomeVal = document.getElementById("income").value.replace(/\D/g, "");
+    var incomeSelected = document.querySelector('input[name="income"]:checked');
+    var incomeVal = incomeSelected ? incomeSelected.value : "";
 
     // Get tracking params from sessionStorage (captured on landing)
     var landingUrl = sessionStorage.getItem('landing_url') || window.location.href;
