@@ -17,6 +17,9 @@ on:
       chat_id:
         description: "Telegram chat id to reply to (optional)"
         required: false
+      message_id:
+        description: "Telegram message id for reactions (optional)"
+        required: false
 
 # One change at a time so concurrent requests don't fight over main.
 concurrency:
@@ -37,6 +40,7 @@ jobs:
       REQUEST: ${{ github.event.client_payload.request || github.event.inputs.request }}
       FROM: ${{ github.event.client_payload.from || 'manual' }}
       MODE: ${{ github.event.client_payload.mode || github.event.inputs.mode || 'auto' }}
+      MESSAGE_ID: ${{ github.event.client_payload.message_id || github.event.inputs.message_id || '' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -64,6 +68,33 @@ jobs:
             fi
           done
           ls -la _agent_inbox || true
+
+      - name: Cache agent-browser + Chrome
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.agent-browser
+            ~/.npm/_npx
+          key: agent-browser-${{ runner.os }}-v1
+
+      - name: Install agent-browser
+        run: |
+          if ! command -v agent-browser &>/dev/null; then
+            npm i -g agent-browser
+          fi
+          if [ ! -d "$HOME/.agent-browser" ] || [ -z "$(ls -A $HOME/.agent-browser 2>/dev/null)" ]; then
+            agent-browser install --with-deps
+          fi
+
+      - name: Set working reaction
+        if: env.CHAT_ID != '' && env.MESSAGE_ID != ''
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setMessageReaction" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n --arg c "$CHAT_ID" --arg m "$MESSAGE_ID" \
+              '{chat_id:$c, message_id:($m|tonumber), reaction:[{type:"emoji",emoji:"⚙️"}]}')" >/dev/null
 
       - name: Handle the request with Claude
         uses: anthropics/claude-code-action@v1
@@ -97,16 +128,36 @@ jobs:
             2. CHANGE request (e.g. "make X clickable", "change the headline to Y"):
                make the change directly to the site's HTML/CSS/JS — minimal, matching
                the surrounding style and AGENTS.md (e.g. forms must use method="get").
-               Do NOT modify or stage anything under _agent_inbox/. When done,
-               `git add` your changed files and `git commit` with a short message.
-               Do NOT push or deploy — the workflow does that.
+               Do NOT modify or stage anything under _agent_inbox/ except VERIFY.sh.
+               When done, `git add` your changed files and `git commit` with a short
+               message. Do NOT push or deploy — the workflow does that.
+
+               VISUAL VERIFICATION: After committing, if the change is visual, create
+               _agent_inbox/VERIFY.sh with agent-browser commands to screenshot the
+               change on the live site. The script should:
+               a) Open the relevant page URL on shophealthrates.com
+               b) Navigate to the affected section if needed — use
+                  `agent-browser eval "show('step-id')"` to jump to quiz steps
+               c) Screenshot to _agent_inbox/verify.png
+               d) Close the browser
+
+               Example for a change on the contact info step:
+                 #!/bin/bash
+                 agent-browser open "https://shophealthrates.com/quiz.html?zip=60610"
+                 agent-browser wait --load networkidle
+                 agent-browser eval "show('step-contact')"
+                 agent-browser wait 1000
+                 agent-browser screenshot _agent_inbox/verify.png
+                 agent-browser close
+
+               If the change is NOT visual (tracking, JS logic), skip VERIFY.sh.
 
             3. CHANGE request too ambiguous to do safely: make NO changes; write a
                single clarifying question to ./_agent_inbox/REPLY.txt and stop.
           claude_args: >-
-            --allowedTools "Read,Edit,Write,Bash(git add:*),Bash(git commit:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(grep:*),Bash(ls:*),Bash(cat:*)"
+            --allowedTools "Read,Edit,Write,Bash(git add:*),Bash(git commit:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(grep:*),Bash(ls:*),Bash(cat:*),Bash(agent-browser:*)"
 
-      - name: Push, deploy, and report back to Telegram
+      - name: Push, deploy, verify, and report back to Telegram
         if: always()
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -118,6 +169,20 @@ jobs:
             curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
               -H "Content-Type: application/json" \
               -d "$(jq -n --arg c "$CHAT_ID" --arg t "$1" '{chat_id:$c, text:$t}')" >/dev/null
+          }
+
+          react() {
+            [ -z "$CHAT_ID" ] || [ -z "$MESSAGE_ID" ] && return
+            curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setMessageReaction" \
+              -H "Content-Type: application/json" \
+              -d "$(jq -n --arg c "$CHAT_ID" --arg m "$MESSAGE_ID" --arg e "$1" \
+                '{chat_id:$c, message_id:($m|tonumber), reaction:[{type:"emoji",emoji:$e}]}')" >/dev/null
+          }
+
+          send_photo() {
+            [ -z "$CHAT_ID" ] && return
+            curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendPhoto" \
+              -F "chat_id=$CHAT_ID" -F "photo=@$1" -F "caption=$2" >/dev/null
           }
 
           # 1) Claude wrote a reply — an answer to a question, or a clarifying
@@ -135,18 +200,35 @@ jobs:
 
           # 3) No new commit → Claude couldn't safely make the change.
           if [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ]; then
+            react "❌"
             send "🤔 I couldn't make that change automatically — Eugene will take a look."
             exit 0
           fi
 
           # 4) Ship it — rebase on latest main in case someone pushed while we worked.
+          react "🚀"
           git fetch origin main
-          git rebase origin/main || { send "⚠️ Made the change but hit a merge conflict — Eugene will take a look."; exit 1; }
+          git rebase origin/main || { react "❌"; send "⚠️ Made the change but hit a merge conflict — Eugene will take a look."; exit 1; }
           git push "https://x-access-token:${GH_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:main \
-            || { send "⚠️ Made the change but couldn't push to GitHub — Eugene will take a look."; exit 1; }
+            || { react "❌"; send "⚠️ Made the change but couldn't push to GitHub — Eugene will take a look."; exit 1; }
 
-          rm -rf _agent_inbox            # don't deploy the screenshots
+          rm -rf _agent_inbox/screenshot_*
           npm i -g vercel >/dev/null 2>&1
           vercel deploy --prod --yes --token "$VERCEL_TOKEN" >/dev/null 2>&1 || true
+
+          # 5) Visual verification with agent-browser
           COMMIT=$(git log -1 --pretty=%s)
-          send "✅ Done — \"$COMMIT\" is live on https://shophealthrates.com"
+          if [ -f _agent_inbox/VERIFY.sh ]; then
+            react "🧪"
+            sleep 5  # wait for Vercel CDN propagation
+            chmod +x _agent_inbox/VERIFY.sh
+            bash _agent_inbox/VERIFY.sh || true
+            if [ -f _agent_inbox/verify.png ]; then
+              send_photo "_agent_inbox/verify.png" "✅ \"$COMMIT\" is live on shophealthrates.com"
+            else
+              send "✅ Done — \"$COMMIT\" is live on shophealthrates.com (screenshot failed)"
+            fi
+          else
+            send "✅ Done — \"$COMMIT\" is live on https://shophealthrates.com"
+          fi
+          react "✅"
