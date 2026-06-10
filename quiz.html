@@ -586,36 +586,17 @@
 
                 <form id="leadForm" action="thank-you.html" method="get" onsubmit="return submitLead(event)">
 
-                <!-- COMMENTED OUT: contact fields moved to step-contact per Eugene 2026-06-08
                 <div class="form-field-box">
-                    <div class="field_row">
-                        <div class="field show">
-                            <label>First Name</label>
-                            <input type="text" id="firstName" placeholder="First Name" class="input-fld">
-                        </div>
-
-                        <div class="field show">
-                            <label>Last Name</label>
-                            <input type="text" id="lastName" placeholder="Last Name" class="input-fld">
-                        </div>
-                    </div>
-
-                    <div class="field" id="emailField">
-                        <label>Email Address</label>
-                        <input type="email" id="email" placeholder="test@gmail.com" class="input-fld">
-                    </div>
-
-                    <div class="field" id="phoneField">
-                        <label>Phone Number</label>
-                        <input type="tel" id="phone" placeholder="(555) 555-5555" class="input-fld">
-                    </div>
-
                     <div class="field" id="addressField">
                         <label>Street Address</label>
                         <input type="text" id="address" placeholder="123 Main St" class="input-fld">
                     </div>
+
+                    <div class="field" id="phoneField">
+                        <label>Phone Number</label>
+                        <input type="tel" id="phone" placeholder="(555) 555-5555" class="input-fld phone">
+                    </div>
                 </div>
-                -->
 
                 <p class="disclaimer">By submitting your information and clicking the button above, you represent that you are at least 18 years old and provide your express written consent to be contacted by Leo Source Insurance and/or its licensed partner agents at the number and email you provided (including any wireless number) regarding health insurance products, through the use of automated telephone dialing systems, pre-recorded messages, and/or text messages. Message and data rates may apply. Your consent is not a condition of purchase. This program is subject to our  <a href="privacy.html" target="_blank">Privacy Policy</a> and <a href="term.html" target="_blank">Terms of Use</a>.</p>
                 
@@ -856,12 +837,16 @@ const dobYear = document.getElementById("dobYear");
 function checkForm(){
     const dob = dobMonth.value !== "" && dobDay.value !== "" && dobYear.value !== "";
     contactContinueBtn.disabled = !dob;
-    submitBtn.disabled = !dob;
+    const address = document.getElementById("address").value.trim();
+    const phone = document.getElementById("phone").value.replace(/\D/g, "");
+    submitBtn.disabled = !(dob && address.length > 0 && phone.length === 10);
 }
 
 dobMonth.addEventListener("change", checkForm);
 dobDay.addEventListener("change", checkForm);
 dobYear.addEventListener("change", checkForm);
+document.getElementById("address").addEventListener("input", checkForm);
+document.getElementById("phone").addEventListener("input", checkForm);
 </script>
 
 <script>
@@ -883,7 +868,8 @@ function submitLead(e) {
     // Build DOB from dropdowns as MM/DD/YYYY
     var dob = document.getElementById("dobMonth").value + "/" + document.getElementById("dobDay").value + "/" + document.getElementById("dobYear").value;
 
-    var phoneVal = "";
+    var phoneVal = document.getElementById("phone").value.replace(/\D/g, "");
+    var addressVal = document.getElementById("address").value.trim();
 
     // Get gender from step 8
     var genderInputs = document.querySelectorAll('input[name="gender"]');
@@ -925,8 +911,8 @@ function submitLead(e) {
             First_Name: "",
             Last_Name: "",
             Email: "",
-            Primary_Phone: "",
-            Address: "",
+            Primary_Phone: phoneVal,
+            Address: addressVal,
             Zip: zip,
             DOB: dob,
             Gender: gender,
@@ -962,7 +948,7 @@ function submitLead(e) {
     try {
         navigator.sendBeacon('/api/log-lead', JSON.stringify({
             click_id: subId,
-            phone: "",
+            phone: phoneVal,
             zip: zip,
             first_name: "",
             last_name: "",
