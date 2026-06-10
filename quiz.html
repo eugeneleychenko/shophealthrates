@@ -671,13 +671,14 @@
 let screenHistory = [];
 
 function show(id){
-	
+
 	setTimeout(() => {
 
   const current = document.querySelector('.screen.active');
-  
+
   if(current && current.id !== id){
       screenHistory.push(current.id); // save history
+      history.pushState({ quizStep: id }, ''); // mirror in browser history so Back stays in quiz
   }
 
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
@@ -685,51 +686,55 @@ function show(id){
 
   if(el){
     el.classList.add('active');
-	
+
     window.scrollTo({
       top: 0,
       behavior: 'smooth'
     });
 
     progress();
-	
-		
+
+
     // ✅ show/hide back button
     toggleBackButton();
   }
-  
-  
+
+
   }, 300); // ⏱ delay here
 }
 
 
 
 function goBack(){
-
+    // Delegate to browser history — popstate handler shows the previous step
     if(screenHistory.length > 0){
-        const prevId = screenHistory.pop();
-
-        document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-        const el = document.getElementById(prevId);
-
-        if(el){
-            el.classList.add('active');
-
-            window.scrollTo({
-                top: 0,
-                behavior: 'smooth'
-            });
-
-            progress();
-            
-            toggleBackButton();
-        }
+        history.back();
     }
 }
 
 
+// Browser Back button / swipe-back: navigate within the quiz instead of leaving it
+window.addEventListener('popstate', function() {
+    if (screenHistory.length > 0) {
+        var prevId = screenHistory.pop();
+        document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
+        var el = document.getElementById(prevId);
+        if (el) {
+            el.classList.add('active');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            progress();
+            toggleBackButton();
+        }
+    }
+});
+
+
 function toggleBackButton(){
-    const backBtn = document.querySelector('.btn-back');
+    // Scope to the currently visible step so we don't accidentally touch a hidden step's button
+    const activeScreen = document.querySelector('.screen.active');
+    if (!activeScreen) return;
+    const backBtn = activeScreen.querySelector('.btn-back');
+    if (!backBtn) return;
 
     if(screenHistory.length > 0){
         backBtn.style.display = 'flex';
