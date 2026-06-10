@@ -420,20 +420,6 @@
                 <h2 class="step_title">Great Job, You're Almost Done!</h2>
 
                 <div class="form-field-box">
-                    <div class="field_row">
-                        <div class="field show">
-                            <label>First Name</label>
-                            <input type="text" id="firstName" placeholder="First Name" class="input-fld">
-                        </div>
-                        <div class="field show">
-                            <label>Last Name</label>
-                            <input type="text" id="lastName" placeholder="Last Name" class="input-fld">
-                        </div>
-                    </div>
-                    <div class="field show" id="emailField">
-                        <label>Email Address</label>
-                        <input type="email" id="email" placeholder="test@gmail.com" class="input-fld">
-                    </div>
                     <div class="formfield show">
                         <label>Date Of Birth</label>
                         <div class="dob-row">
@@ -459,14 +445,6 @@
                                 <option value="" disabled selected>Year</option>
                             </select>
                         </div>
-                    </div>
-                    <div class="field show" id="addressField">
-                        <label>Street Address</label>
-                        <input type="text" id="address" placeholder="123 Main St" class="input-fld">
-                    </div>
-                    <div class="field show" id="phoneField">
-                        <label>Phone Number</label>
-                        <input type="tel" id="phone" placeholder="(555) 555-5555" class="input-fld">
                     </div>
                 </div>
 
@@ -869,16 +847,6 @@ jQuery(document).on("input", ".phone", function () {
 
 <script>
 
-const firstName = document.getElementById("firstName");
-const lastName = document.getElementById("lastName");
-
-const email = document.getElementById("email");
-const phone = document.getElementById("phone");
-
-const emailField = document.getElementById("emailField");
-const phoneField = document.getElementById("phoneField");
-
-const address = document.getElementById("address");
 const submitBtn = document.getElementById("submitBtn");
 const contactContinueBtn = document.getElementById("contactContinueBtn");
 const dobMonth = document.getElementById("dobMonth");
@@ -886,70 +854,14 @@ const dobDay = document.getElementById("dobDay");
 const dobYear = document.getElementById("dobYear");
 
 function checkForm(){
-
-    const first  = firstName.value.trim() !== "";
-    const last   = lastName.value.trim() !== "";
-    const mail   = email.value.trim() !== "";
-    const phoneV = phone.value.trim() !== "";
-    const addr   = address.value.trim() !== "";
-    const dob    = dobMonth.value !== "" && dobDay.value !== "" && dobYear.value !== "";
-
-    // SHOW FIELDS
-    if(first && last){
-        emailField.classList.add("show");
-    }
-
-    if(mail){
-        phoneField.classList.add("show");
-    }
-
-    if(phoneV){
-        addressField.classList.add("show");
-    }
-
-    // ENABLE CONTACT CONTINUE BUTTON
-    contactContinueBtn.disabled = !(first && last && mail && phoneV && addr && dob);
-
-    // ENABLE FINAL SUBMIT BUTTON
-    submitBtn.disabled = !(first && last && mail && phoneV && addr);
-
+    const dob = dobMonth.value !== "" && dobDay.value !== "" && dobYear.value !== "";
+    contactContinueBtn.disabled = !dob;
+    submitBtn.disabled = !dob;
 }
 
-firstName.addEventListener("input", checkForm);
-lastName.addEventListener("input", checkForm);
-email.addEventListener("input", checkForm);
-phone.addEventListener("input", checkForm);
-address.addEventListener("input", checkForm);
 dobMonth.addEventListener("change", checkForm);
 dobDay.addEventListener("change", checkForm);
 dobYear.addEventListener("change", checkForm);
-
-
-//PHONE FIELD
-
-phone.addEventListener("input", function(e){
-
-    let numbers = e.target.value.replace(/\D/g, "");
-
-    numbers = numbers.substring(0,10);
-
-    let formatted = "";
-
-    if(numbers.length > 0){
-        formatted = "(" + numbers.substring(0,3);
-    }
-
-    if(numbers.length >= 4){
-        formatted += ") " + numbers.substring(3,6);
-    }
-
-    if(numbers.length >= 7){
-        formatted += "-" + numbers.substring(6,10);
-    }
-
-    e.target.value = formatted;
-
-});
 </script>
 
 <script>
@@ -971,8 +883,7 @@ function submitLead(e) {
     // Build DOB from dropdowns as MM/DD/YYYY
     var dob = document.getElementById("dobMonth").value + "/" + document.getElementById("dobDay").value + "/" + document.getElementById("dobYear").value;
 
-    // Get phone digits only
-    var phoneVal = document.getElementById("phone").value.replace(/\D/g, "");
+    var phoneVal = "";
 
     // Get gender from step 8
     var genderInputs = document.querySelectorAll('input[name="gender"]');
@@ -1011,11 +922,11 @@ function submitLead(e) {
             IP_Address: "75.2.92.149",
             Landing_Page: landingUrl,
             Sub_ID: subId,
-            First_Name: document.getElementById("firstName").value.trim(),
-            Last_Name: document.getElementById("lastName").value.trim(),
-            Email: document.getElementById("email").value.trim(),
-            Primary_Phone: phoneVal,
-            Address: document.getElementById("address").value.trim(),
+            First_Name: "",
+            Last_Name: "",
+            Email: "",
+            Primary_Phone: "",
+            Address: "",
             Zip: zip,
             DOB: dob,
             Gender: gender,
@@ -1051,10 +962,10 @@ function submitLead(e) {
     try {
         navigator.sendBeacon('/api/log-lead', JSON.stringify({
             click_id: subId,
-            phone: phoneVal,
+            phone: "",
             zip: zip,
-            first_name: document.getElementById("firstName").value.trim(),
-            last_name: document.getElementById("lastName").value.trim(),
+            first_name: "",
+            last_name: "",
             timestamp: new Date().toISOString()
         }));
     } catch (_) {}
@@ -1068,16 +979,5 @@ function submitLead(e) {
 }
 </script>
 
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC0J3P6QmDKE22gr7F3iKrcwsNHUEsnip0&libraries=places&callback=initAutocomplete" async defer></script>
-<script>
-function initAutocomplete() {
-  var input = document.getElementById("address");
-  var autocomplete = new google.maps.places.Autocomplete(input, {
-    types: ["address"],
-    componentRestrictions: { country: "us" }
-  });
-  autocomplete.setFields(["address_components", "formatted_address"]);
-}
-</script>
 </body>
 </html>
