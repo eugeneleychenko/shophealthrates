@@ -1017,5 +1017,17 @@ function submitLead(e) {
 }
 </script>
 
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC0J3P6QmDKE22gr7F3iKrcwsNHUEsnip0&libraries=places&callback=initAutocomplete" async defer></script>
+<script>
+function initAutocomplete() {
+  var input = document.getElementById("address");
+  var autocomplete = new google.maps.places.Autocomplete(input, {
+    types: ["address"],
+    componentRestrictions: { country: "us" }
+  });
+  autocomplete.setFields(["address_components", "formatted_address"]);
+}
+</script>
+
 </body>
 </html>
