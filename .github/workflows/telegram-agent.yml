@@ -45,6 +45,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # Check out the branch tip at run start, NOT the SHA captured at
+          # dispatch time — a run queued behind another would otherwise start
+          # from a stale base and hit a rebase conflict with the prior push.
+          ref: main
 
       - name: Configure git identity
         run: |
@@ -136,16 +140,30 @@ jobs:
                _agent_inbox/VERIFY.sh with agent-browser commands to screenshot the
                change on the live site. The script should:
                a) Open the relevant page URL on shophealthrates.com
-               b) Navigate to the affected section if needed — use
-                  `agent-browser eval "show('step-id')"` to jump to quiz steps
-               c) Screenshot to _agent_inbox/verify.png
+               b) Navigate to the EXACT element/section you changed. For quiz steps,
+                  use `agent-browser eval "show('<id>')"` with the id of the step
+                  YOU EDITED — do not copy a step id from an example. The quiz's
+                  internal ids do NOT match the step numbers clients use:
+                    visible Step 1 = id "step-8"       (gender)
+                    visible Step 2 = id "step-5"       (household size)
+                    visible Step 3 = id "step-7"       (income)
+                    visible Step 4 = id "step-contact" (date of birth)
+                    visible Step 5 = id "step-10"      (address + phone)
+                    visible Step 6 = id "step-11"      (name + email, final)
+                  If you changed the step markup, re-read quiz.html to confirm the
+                  id, and verify this mapping is still current.
+               c) Wait, then screenshot to _agent_inbox/verify.png
                d) Close the browser
+               e) SANITY-CHECK YOUR OWN SCRIPT before finishing: the heading/fields
+                  visible in the screenshot must be the ones you changed. A
+                  screenshot of the wrong step is worse than no screenshot — the
+                  client treats it as proof the change failed.
 
-               Example for a change on the contact info step:
+               Template (replace step-10 with the id of the step you changed):
                  #!/bin/bash
                  agent-browser open "https://shophealthrates.com/quiz.html?zip=60610"
                  agent-browser wait --load networkidle
-                 agent-browser eval "show('step-contact')"
+                 agent-browser eval "show('step-10')"
                  agent-browser wait 1000
                  agent-browser screenshot _agent_inbox/verify.png
                  agent-browser close

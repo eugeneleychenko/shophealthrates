@@ -81,6 +81,20 @@ module.exports = async (req, res) => {
     return res.status(200).send("empty request");
   }
 
+  // "stop" / "cancel" — don't dispatch a new run; cancel queued + in-progress
+  // agent runs so a superseded instruction never executes.
+  if (/^(stop|cancel)[.!]*$/i.test(request)) {
+    const cancelled = await cancelAgentRuns();
+    if (cancelled > 0) {
+      await tgSend(chatId, `🛑 Stopped — cancelled ${cancelled} pending change${cancelled === 1 ? "" : "s"}.`);
+    } else if (cancelled === 0) {
+      await tgSend(chatId, "🛑 Nothing was running — no pending changes to stop.");
+    } else {
+      await tgSend(chatId, "⚠️ Couldn't cancel the running change (token may lack Actions permission) — Eugene will take a look.");
+    }
+    return res.status(200).send("stop handled");
+  }
+
   // 4. Collect any attached image file_ids (largest photo size + image documents).
   //    The Action downloads the actual bytes — we only pass the ids.
   const photoFileIds = [];
@@ -151,6 +165,41 @@ async function tgSend(chatId, text) {
     });
   } catch (_) {
     /* best effort — the Action will still report the outcome */
+  }
+}
+
+// Cancel all queued + in-progress runs of the telegram-agent workflow.
+// Returns the number of runs cancelled, or -1 if the API calls failed
+// (e.g. the PAT lacks "Actions: Read & write").
+async function cancelAgentRuns() {
+  const gh = (path, opts) =>
+    fetch(`https://api.github.com/repos/${GH_OWNER}/${GH_REPO}${path}`, {
+      ...opts,
+      headers: {
+        Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        ...(opts && opts.headers),
+      },
+    });
+
+  try {
+    const runs = [];
+    for (const status of ["queued", "in_progress"]) {
+      const resp = await gh(`/actions/workflows/telegram-agent.yml/runs?status=${status}&per_page=20`);
+      if (!resp.ok) return -1;
+      const json = await resp.json();
+      runs.push(...(json.workflow_runs || []));
+    }
+    let cancelled = 0;
+    for (const run of runs) {
+      const resp = await gh(`/actions/runs/${run.id}/cancel`, { method: "POST" });
+      if (resp.ok) cancelled++;
+      else return -1;
+    }
+    return cancelled;
+  } catch (_) {
+    return -1;
   }
 }
 

@@ -579,12 +579,10 @@
 			</div>
         </div>
 
-        <div class="screen" id="step-10" data-wdth="100" data-stepnum="5">
+        <div class="screen" id="step-10" data-wdth="90" data-stepnum="5">
             <div class="inner_section">
             	<p class="step_subheading">YOUR PROFILE</p>
             	<h2 class="step_title">Great Job, You're Almost Done!</h2>
-
-                <form id="leadForm" action="thank-you.html" method="get" onsubmit="return submitLead(event)">
 
                 <div class="form-field-box">
                     <div class="field show" id="addressField">
@@ -598,22 +596,58 @@
                     </div>
                 </div>
 
-                <p class="disclaimer">By submitting your information and clicking the button above, you represent that you are at least 18 years old and provide your express written consent to be contacted by Leo Source Insurance and/or its licensed partner agents at the number and email you provided (including any wireless number) regarding health insurance products, through the use of automated telephone dialing systems, pre-recorded messages, and/or text messages. Message and data rates may apply. Your consent is not a condition of purchase. This program is subject to our  <a href="privacy.html" target="_blank">Privacy Policy</a> and <a href="term.html" target="_blank">Terms of Use</a>.</p>
-                
-                
 				<div class="button-col">
                 	<p class="btn-secure-text"><img src="images/lock-icon.webp" alt="icon">Secure 256-Bit Encrypted Connection</p>
-                	<button type="submit" class="common-btn" id="submitBtn" disabled>Show Your Pricing <img src="images/btn-arrow.webp" alt="icon"></button>
+                	<button type="button" class="common-btn" id="addressContinueBtn" disabled onclick="show('step-11')">Continue <img src="images/btn-arrow.webp" alt="icon"></button>
                 </div>
-                
+
+                <a href="javascript:void(0)" class="btn-back" onclick="goBack()"><img src="images/back-arrow.webp" alt="">Back</a>
+			</div>
+        </div>
+
+        <div class="screen" id="step-11" data-wdth="100" data-stepnum="6">
+            <div class="inner_section">
+            	<p class="step_subheading">YOUR PROFILE</p>
+            	<h2 class="step_title">Great Job, You're Almost Done!</h2>
+
+                <form id="leadForm" action="thank-you.html" method="get" onsubmit="return submitLead(event)">
+
+                <div class="form-field-box">
+                    <div class="field_row">
+                        <div class="field show" id="firstNameField">
+                            <label>First Name</label>
+                            <input type="text" id="firstName" placeholder="First Name" class="input-fld" autocomplete="given-name">
+                        </div>
+
+                        <div class="field show" id="lastNameField">
+                            <label>Last Name</label>
+                            <input type="text" id="lastName" placeholder="Last Name" class="input-fld" autocomplete="family-name">
+                        </div>
+                    </div>
+
+                    <div class="field show" id="emailField">
+                        <label>Email Address</label>
+                        <input type="email" id="email" placeholder="you@example.com" class="input-fld" autocomplete="email">
+                    </div>
+                </div>
+
+                <p class="disclaimer">By submitting your information and clicking the button above, you represent that you are at least 18 years old and provide your express written consent to be contacted by Leo Source Insurance and/or its licensed partner agents at the number and email you provided (including any wireless number) regarding health insurance products, through the use of automated telephone dialing systems, pre-recorded messages, and/or text messages. Message and data rates may apply. Your consent is not a condition of purchase. This program is subject to our  <a href="privacy.html" target="_blank">Privacy Policy</a> and <a href="term.html" target="_blank">Terms of Use</a>.</p>
+
+                <p class="disclaimer">Standard Message &amp; data rates may apply. Text "STOP" to Cancel. Text "HELP" for Help.</p>
+
+				<div class="button-col">
+                	<p class="btn-secure-text"><img src="images/lock-icon.webp" alt="icon">Secure 256-Bit Encrypted Connection</p>
+                	<button type="submit" class="common-btn" id="submitBtn" disabled>Compare Rates <img src="images/btn-arrow.webp" alt="icon"></button>
+                </div>
+
                 </form>
-                                                         
-                <a href="javascript:void(0)" class="btn-back" onclick="goBack()"><img src="images/back-arrow.webp" alt="">Back</a> 
-                
+
+                <a href="javascript:void(0)" class="btn-back" onclick="goBack()"><img src="images/back-arrow.webp" alt="">Back</a>
+
                 <p class="disclaimer disclaimer-2">Any plan prices and details shown are our initial estimates. To buy a plan, you must complete an application process with one of our partners that is licensed to sell insurance products and that will provide you more definitive information on plan prices, benefits, availability, and other details. You may also call to inquire and/or purchase. You may be directed to a licensed sales agent who can answer your questions and provide information about individual health insurance plans. Agents are not connected with or endorsed by the U.S. government.</p>
 			</div>
         </div>
-          
+
     </div>
 </div>
 
@@ -830,23 +864,38 @@ jQuery(document).on("input", ".phone", function () {
 
 const submitBtn = document.getElementById("submitBtn");
 const contactContinueBtn = document.getElementById("contactContinueBtn");
+const addressContinueBtn = document.getElementById("addressContinueBtn");
 const dobMonth = document.getElementById("dobMonth");
 const dobDay = document.getElementById("dobDay");
 const dobYear = document.getElementById("dobYear");
 
-function checkForm(){
+function checkDob(){
     const dob = dobMonth.value !== "" && dobDay.value !== "" && dobYear.value !== "";
     contactContinueBtn.disabled = !dob;
-    const address = document.getElementById("address").value.trim();
-    const phone = document.getElementById("phone").value.replace(/\D/g, "");
-    submitBtn.disabled = !(dob && address.length > 0 && phone.length === 10);
 }
 
-dobMonth.addEventListener("change", checkForm);
-dobDay.addEventListener("change", checkForm);
-dobYear.addEventListener("change", checkForm);
-document.getElementById("address").addEventListener("input", checkForm);
-document.getElementById("phone").addEventListener("input", checkForm);
+function checkAddressPhone(){
+    const address = document.getElementById("address").value.trim();
+    const phone = document.getElementById("phone").value.replace(/\D/g, "");
+    addressContinueBtn.disabled = !(address.length > 0 && phone.length === 10);
+}
+
+function checkNameEmail(){
+    const first = document.getElementById("firstName").value.trim();
+    const last = document.getElementById("lastName").value.trim();
+    const email = document.getElementById("email").value.trim();
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    submitBtn.disabled = !(first.length > 0 && last.length > 0 && emailOk);
+}
+
+dobMonth.addEventListener("change", checkDob);
+dobDay.addEventListener("change", checkDob);
+dobYear.addEventListener("change", checkDob);
+document.getElementById("address").addEventListener("input", checkAddressPhone);
+document.getElementById("phone").addEventListener("input", checkAddressPhone);
+document.getElementById("firstName").addEventListener("input", checkNameEmail);
+document.getElementById("lastName").addEventListener("input", checkNameEmail);
+document.getElementById("email").addEventListener("input", checkNameEmail);
 </script>
 
 <script>
@@ -870,6 +919,9 @@ function submitLead(e) {
 
     var phoneVal = document.getElementById("phone").value.replace(/\D/g, "");
     var addressVal = document.getElementById("address").value.trim();
+    var firstVal = document.getElementById("firstName").value.trim();
+    var lastVal = document.getElementById("lastName").value.trim();
+    var emailVal = document.getElementById("email").value.trim();
 
     // Get gender from step 8
     var genderInputs = document.querySelectorAll('input[name="gender"]');
@@ -908,9 +960,9 @@ function submitLead(e) {
             IP_Address: "75.2.92.149",
             Landing_Page: landingUrl,
             Sub_ID: subId,
-            First_Name: "",
-            Last_Name: "",
-            Email: "",
+            First_Name: firstVal,
+            Last_Name: lastVal,
+            Email: emailVal,
             Primary_Phone: phoneVal,
             Address: addressVal,
             Zip: zip,
@@ -950,8 +1002,8 @@ function submitLead(e) {
             click_id: subId,
             phone: phoneVal,
             zip: zip,
-            first_name: "",
-            last_name: "",
+            first_name: firstVal,
+            last_name: lastVal,
             timestamp: new Date().toISOString()
         }));
     } catch (_) {}
