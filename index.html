@@ -37,15 +37,17 @@
 <!-- Capture UTM/tracking params from ad click into sessionStorage -->
 <script>
 (function() {
-    if (!sessionStorage.getItem('landing_url')) {
-        var params = new URLSearchParams(window.location.search);
-        if (params.has('gclid') || params.has('cpid') || params.has('utm_source') || params.has('wbraid') || params.has('gbraid')) {
-            sessionStorage.setItem('landing_url', window.location.href);
-            params.forEach(function(value, key) {
-                sessionStorage.setItem('utm_' + key, value);
-            });
+    try {
+        if (!sessionStorage.getItem('landing_url')) {
+            var params = new URLSearchParams(window.location.search);
+            if (params.has('gclid') || params.has('cpid') || params.has('utm_source') || params.has('wbraid') || params.has('gbraid')) {
+                sessionStorage.setItem('landing_url', window.location.href);
+                params.forEach(function(value, key) {
+                    sessionStorage.setItem('utm_' + key, value);
+                });
+            }
         }
-    }
+    } catch (_) {} // sessionStorage throws when the browser blocks site data
 })();
 </script>
 
@@ -188,12 +190,12 @@
     <div class="container"> 
     	<p class="banner_bottom_heading">We Work With The Best</p>   
         <ul class="banner_bottom_list">
-            <li><a href="quiz.html?step=2"><img src="images/bnr-btm-logo1.webp" class="banner_bottom_logo" alt="logo"></a></li>
-            <li><a href="quiz.html?step=2"><img src="images/bnr-btm-logo2.webp" class="banner_bottom_logo" alt="logo"></a></li>
-            <li><a href="quiz.html?step=2"><img src="images/bnr-btm-logo3.webp" class="banner_bottom_logo" alt="logo"></a></li>
-            <li><a href="quiz.html?step=2"><img src="images/bnr-btm-logo4.webp" class="banner_bottom_logo" alt="logo"></a></li>
-            <li><a href="quiz.html?step=2"><img src="images/bnr-btm-logo5.webp" class="banner_bottom_logo" alt="logo"></a></li>
-            <li><a href="quiz.html?step=2"><img src="images/bnr-btm-logo6.webp" class="banner_bottom_logo" alt="logo"></a></li>
+            <li><a href="quiz.html"><img src="images/bnr-btm-logo1.webp" class="banner_bottom_logo" alt="logo"></a></li>
+            <li><a href="quiz.html"><img src="images/bnr-btm-logo2.webp" class="banner_bottom_logo" alt="logo"></a></li>
+            <li><a href="quiz.html"><img src="images/bnr-btm-logo3.webp" class="banner_bottom_logo" alt="logo"></a></li>
+            <li><a href="quiz.html"><img src="images/bnr-btm-logo4.webp" class="banner_bottom_logo" alt="logo"></a></li>
+            <li><a href="quiz.html"><img src="images/bnr-btm-logo5.webp" class="banner_bottom_logo" alt="logo"></a></li>
+            <li><a href="quiz.html"><img src="images/bnr-btm-logo6.webp" class="banner_bottom_logo" alt="logo"></a></li>
         </ul>
     </div>
 </div>
@@ -208,19 +210,19 @@
             	<p class="section1_column_number">1</p>
                 <p class="section1_column_heading">Share Your <br>Situation</p>
                 <p class="section1_column_paragraph">Quick profile: ZIP, household, providers you want to keep, and your tax picture. No SSN, no commitment.</p>
-                <a href="quiz.html?step=2"><img src="images/s1-col-img1.webp" class="section1_column_image section1_column_image1" alt="image"></a>
+                <a href="quiz.html"><img src="images/s1-col-img1.webp" class="section1_column_image section1_column_image1" alt="image"></a>
             </div>
             <div class="section1_column">
             	<p class="section1_column_number">2</p>
                 <p class="section1_column_heading">Receive a <br>Curated Shortlist</p>
                 <p class="section1_column_paragraph">A licensed advisor models private plans from 40+ carriers with real total cost including premium, deductible, and tax impact.</p>
-                <a href="quiz.html?step=2"><img src="images/s1-col-img2.webp" class="section1_column_image section1_column_image2" alt="image"></a>
+                <a href="quiz.html"><img src="images/s1-col-img2.webp" class="section1_column_image section1_column_image2" alt="image"></a>
             </div>
             <div class="section1_column">
             	<p class="section1_column_number">3</p>
                 <p class="section1_column_heading">Enroll With <br>Concierge Support</p>
                 <p class="section1_column_paragraph">A licensed advisor models private plans from 40+ carriers with real total cost including premium, deductible, and tax impact.</p>
-               	<a href="quiz.html?step=2"><img src="images/s1-col-img3.webp" class="section1_column_image section1_column_image3" alt="image"></a>
+               	<a href="quiz.html"><img src="images/s1-col-img3.webp" class="section1_column_image section1_column_image3" alt="image"></a>
             </div>   
         </div>
         <div class="clearall"></div>
@@ -247,7 +249,7 @@
                 </div>
                 <div class="section2_column_line"></div>
                 <p class="section2_column_paragraph">COBRA can run $2,000–$3,000/month. A private bridge plan often costs a fraction with same-day approval.</p>
-                <a href="quiz.html?step=2" class="section2_column_button">Review COBRA Alternatives</a>
+                <a href="quiz.html" class="section2_column_button">Review COBRA Alternatives</a>
             </div>
             <div class="section2_column">
             	<div class="section2_column_top">
@@ -258,7 +260,7 @@
                 </div>
                 <div class="section2_column_line"></div>
                 <p class="section2_column_paragraph">Private and short-term plans can be effective the next day — with no Open Enrollment waiting period.</p>
-                <a href="quiz.html?step=2" class="section2_column_button">Bridge a Gap in Coverage</a>
+                <a href="quiz.html" class="section2_column_button">Bridge a Gap in Coverage</a>
             </div>
             <div class="section2_column">
             	<div class="section2_column_top">
@@ -269,7 +271,7 @@
                 </div>
                 <div class="section2_column_line"></div>
                 <p class="section2_column_paragraph">We compare unsubsidized ACA, off-exchange private, and short-term medical to find the best total cost.</p>
-                <a href="quiz.html?step=2" class="section2_column_button">Can You Save?</a>
+                <a href="quiz.html" class="section2_column_button">Can You Save?</a>
             </div>
             <div class="section2_column">
             	<div class="section2_column_top">
@@ -280,7 +282,7 @@
                 </div>
                 <div class="section2_column_line"></div>
                 <p class="section2_column_paragraph">Premium private plans from UnitedHealthcare, Aetna, Cigna & BCBS keep your specialists.</p>
-                <a href="quiz.html?step=2" class="section2_column_button">Review Private Plans</a>
+                <a href="quiz.html" class="section2_column_button">Review Private Plans</a>
             </div>
             <div class="section2_column">   
             	<div class="section2_column_top">
@@ -291,7 +293,7 @@
                 </div>
                 <div class="section2_column_line"></div>
                 <p class="section2_column_paragraph">Premium private plans paired with the self-employed health deduction — lower after-tax cost.</p>
-                <a href="quiz.html?step=2" class="section2_column_button">Plans for Self-Employed</a>
+                <a href="quiz.html" class="section2_column_button">Plans for Self-Employed</a>
             </div>
             <div class="section2_column">
             	<div class="section2_column_top">
@@ -302,7 +304,7 @@
                 </div>
                 <div class="section2_column_line"></div>
                 <p class="section2_column_paragraph">A licensed advisor walks you through plan types, networks and costs — plain English, no pressure.</p>
-                <a href="quiz.html?step=2" class="section2_column_button">Review Private Plans</a>
+                <a href="quiz.html" class="section2_column_button">Review Private Plans</a>
             </div>
     	</div>    
     </div>
@@ -480,10 +482,10 @@
             <div class="footer_links_column footer_links_column2">
                 <p class="footer_links_heading">Shop insurance</p>
                 <ul class="footer_links_list">
-                    <li><a href="quiz.html?step=2">Premium private plans</a></li>
-                    <li><a href="quiz.html?step=2">COBRA alternatives</a></li>
-                    <li><a href="quiz.html?step=2">Self-employed & 1099 coverage</a></li>
-                    <li><a href="quiz.html?step=2">Premium dental, vision & ancillary</a></li>
+                    <li><a href="quiz.html">Premium private plans</a></li>
+                    <li><a href="quiz.html">COBRA alternatives</a></li>
+                    <li><a href="quiz.html">Self-employed & 1099 coverage</a></li>
+                    <li><a href="quiz.html">Premium dental, vision & ancillary</a></li>
                 </ul>
             </div>
             

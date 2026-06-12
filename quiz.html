@@ -33,15 +33,17 @@
 <!-- Capture UTM/tracking params into sessionStorage (if not already set from index.html) -->
 <script>
 (function() {
-    if (!sessionStorage.getItem('landing_url')) {
-        var params = new URLSearchParams(window.location.search);
-        if (params.has('gclid') || params.has('cpid') || params.has('utm_source') || params.has('wbraid') || params.has('gbraid')) {
-            sessionStorage.setItem('landing_url', window.location.href);
-            params.forEach(function(value, key) {
-                sessionStorage.setItem('utm_' + key, value);
-            });
+    try {
+        if (!sessionStorage.getItem('landing_url')) {
+            var params = new URLSearchParams(window.location.search);
+            if (params.has('gclid') || params.has('cpid') || params.has('utm_source') || params.has('wbraid') || params.has('gbraid')) {
+                sessionStorage.setItem('landing_url', window.location.href);
+                params.forEach(function(value, key) {
+                    sessionStorage.setItem('utm_' + key, value);
+                });
+            }
         }
-    }
+    } catch (_) {} // sessionStorage throws when the browser blocks site data
 })();
 </script>
 
@@ -445,12 +447,13 @@
                                 <option value="" disabled selected>Year</option>
                             </select>
                         </div>
+                        <p class="field-error" id="dobError" role="alert" hidden></p>
                     </div>
                 </div>
 
                 <div class="button-col">
                     <p class="btn-secure-text"><img src="images/lock-icon.webp" alt="icon">Secure 256-Bit Encrypted Connection</p>
-                    <button class="common-btn" id="contactContinueBtn" disabled onclick="show('step-10')">Continue <img src="images/btn-arrow.webp" alt="icon"></button>
+                    <button type="button" class="common-btn btn-inactive" id="contactContinueBtn" onclick="continueDob()">Continue <img src="images/btn-arrow.webp" alt="icon"></button>
                 </div>
                 <a href="javascript:void(0)" class="btn-back" onclick="goBack()"><img src="images/back-arrow.webp" alt="">Back</a>
 
@@ -594,11 +597,12 @@
                         <label>Phone Number</label>
                         <input type="tel" id="phone" placeholder="(555) 555-5555" class="input-fld phone">
                     </div>
+                    <p class="field-error" id="addressError" role="alert" hidden></p>
                 </div>
 
 				<div class="button-col">
                 	<p class="btn-secure-text"><img src="images/lock-icon.webp" alt="icon">Secure 256-Bit Encrypted Connection</p>
-                	<button type="button" class="common-btn" id="addressContinueBtn" disabled onclick="show('step-11')">Continue <img src="images/btn-arrow.webp" alt="icon"></button>
+                	<button type="button" class="common-btn btn-inactive" id="addressContinueBtn" onclick="continueAddress()">Continue <img src="images/btn-arrow.webp" alt="icon"></button>
                 </div>
 
                 <a href="javascript:void(0)" class="btn-back" onclick="goBack()"><img src="images/back-arrow.webp" alt="">Back</a>
@@ -610,7 +614,7 @@
             	<p class="step_subheading">YOUR PROFILE</p>
             	<h2 class="step_title">Great Job, You're Almost Done!</h2>
 
-                <form id="leadForm" action="thank-you.html" method="get" onsubmit="return submitLead(event)">
+                <form id="leadForm" action="thank-you.html" method="get" novalidate onsubmit="return submitLead(event)">
 
                 <div class="form-field-box">
                     <div class="field_row">
@@ -629,6 +633,7 @@
                         <label>Email Address</label>
                         <input type="email" id="email" placeholder="you@example.com" class="input-fld" autocomplete="email">
                     </div>
+                    <p class="field-error" id="nameEmailError" role="alert" hidden></p>
                 </div>
 
                 <p class="disclaimer">By submitting your information and clicking the button above, you represent that you are at least 18 years old and provide your express written consent to be contacted by Leo Source Insurance and/or its licensed partner agents at the number and email you provided (including any wireless number) regarding health insurance products, through the use of automated telephone dialing systems, pre-recorded messages, and/or text messages. Message and data rates may apply. Your consent is not a condition of purchase. This program is subject to our  <a href="privacy.html" target="_blank">Privacy Policy</a> and <a href="term.html" target="_blank">Terms of Use</a>.</p>
@@ -637,7 +642,7 @@
 
 				<div class="button-col">
                 	<p class="btn-secure-text"><img src="images/lock-icon.webp" alt="icon">Secure 256-Bit Encrypted Connection</p>
-                	<button type="submit" class="common-btn" id="submitBtn" disabled>Compare Rates <img src="images/btn-arrow.webp" alt="icon"></button>
+                	<button type="submit" class="common-btn btn-inactive" id="submitBtn">Compare Rates <img src="images/btn-arrow.webp" alt="icon"></button>
                 </div>
 
                 </form>
@@ -655,27 +660,30 @@
 
 
 <!--------Script------------->
-<script type="text/javascript" src="js/jquery-3.6.0.min.js"></script>
 <script type="text/javascript">
 
 
 // =========================
-// STEP SHOW FUNCTION
+// SAFE STORAGE HELPERS
+// sessionStorage access throws when the browser blocks site data — never let that kill the quiz
 // =========================
 
+function ssGet(k){ try { return sessionStorage.getItem(k); } catch (_) { return null; } }
+function ssSet(k, v){ try { sessionStorage.setItem(k, v); } catch (_) {} }
+function ssRemove(k){ try { sessionStorage.removeItem(k); } catch (_) {} }
+
+
+// =========================
+// STEP SHOW FUNCTION
+// Every history entry carries its own {quizStep, path} snapshot, so back/forward/reload
+// always restore from the entry itself — never from volatile in-memory state.
+// =========================
+
+const FIRST_STEP = 'step-8';
 let screenHistory = [];
+let lastTransitionAt = 0;
 
-function show(id){
-
-	setTimeout(() => {
-
-  const current = document.querySelector('.screen.active');
-
-  if(current && current.id !== id){
-      screenHistory.push(current.id); // save history
-      history.pushState({ quizStep: id }, ''); // mirror in browser history so Back stays in quiz
-  }
-
+function render(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   const el = document.getElementById(id);
 
@@ -688,39 +696,49 @@ function show(id){
     });
 
     progress();
-
-
-    // ✅ show/hide back button
     toggleBackButton();
   }
-
-
-  }, 300); // ⏱ delay here
 }
 
+function saveProgress(currentId){
+    ssSet('quiz_step', currentId);
+    ssSet('quiz_path', JSON.stringify(screenHistory));
+}
 
+function show(id){
+  const current = document.querySelector('.screen.active');
+  if(!current || current.id === id) return; // label clicks fire twice (label + radio re-bubble)
+  if(Date.now() - lastTransitionAt < 250) return; // a ghost second tap would land on the next screen
+  lastTransitionAt = Date.now();
+
+  screenHistory.push(current.id);
+  history.pushState({ quizStep: id, path: screenHistory.slice() }, '');
+  render(id);
+  saveProgress(id);
+}
 
 function goBack(){
-    // Delegate to browser history — popstate handler shows the previous step
-    if(screenHistory.length > 0){
-        history.back();
-    }
+    if(screenHistory.length === 0) return;
+    if(Date.now() - lastTransitionAt < 250) return;
+    lastTransitionAt = Date.now();
+
+    // Push (not history.back()) so in-quiz Back works even when the browser stack
+    // has no quiz entries behind us, e.g. a resumed session after a bounce
+    const prevId = screenHistory.pop();
+    history.pushState({ quizStep: prevId, path: screenHistory.slice() }, '');
+    render(prevId);
+    saveProgress(prevId);
 }
 
 
-// Browser Back button / swipe-back: navigate within the quiz instead of leaving it
-window.addEventListener('popstate', function() {
-    if (screenHistory.length > 0) {
-        var prevId = screenHistory.pop();
-        document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
-        var el = document.getElementById(prevId);
-        if (el) {
-            el.classList.add('active');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-            progress();
-            toggleBackButton();
-        }
-    }
+// Browser Back/Forward/swipe: render the snapshot stored on the history entry itself
+window.addEventListener('popstate', function(e) {
+    const st = (e.state && e.state.quizStep && document.getElementById(e.state.quizStep))
+        ? e.state
+        : { quizStep: FIRST_STEP, path: [] };
+    screenHistory = (st.path || []).slice();
+    render(st.quizStep);
+    saveProgress(st.quizStep);
 });
 
 
@@ -739,18 +757,43 @@ function toggleBackButton(){
 }
 
 
-// ADD THIS HERE (VERY END OF FILE)
 document.addEventListener("DOMContentLoaded", function () {
-    toggleBackButton(); // hide button on step-1
+    if (typeof restoreAnswers === 'function') restoreAnswers();
 
-    // Auto-advance to a specific step if ?step= is present in the URL
-    const stepParam = new URLSearchParams(window.location.search).get('step');
-    if (stepParam) {
-        const targetId = 'step-' + stepParam;
-        if (document.getElementById(targetId)) {
-            show(targetId);
-        }
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('zip')) ssSet('quiz_zip', params.get('zip'));
+
+    let startId = FIRST_STEP;
+    const st = history.state;
+    const savedStep = ssGet('quiz_step');
+    const stepParam = params.get('step');
+
+    if (st && st.quizStep && document.getElementById(st.quizStep)) {
+        // Reload / tab restore: resume the exact history entry
+        screenHistory = (st.path || []).slice();
+        startId = st.quizStep;
+    } else if (savedStep && document.getElementById(savedStep)) {
+        // Fresh navigation mid-session (e.g. bounced out and came back): resume saved progress
+        try { screenHistory = JSON.parse(ssGet('quiz_path') || '[]'); } catch (_) { screenHistory = []; }
+        startId = savedStep;
+    } else if (stepParam && document.getElementById('step-' + stepParam)) {
+        startId = 'step-' + stepParam;
     }
+
+    history.replaceState({ quizStep: startId, path: screenHistory.slice() }, '');
+    render(startId);
+    if (typeof refreshButtons === 'function') refreshButtons();
+});
+
+// bfcache / form-restore can repopulate fields without firing change events — re-validate.
+// Also un-stick the submit button if the user swipes back from thank-you.html mid-'Submitting...'
+window.addEventListener('pageshow', function () {
+    var sb = document.getElementById('submitBtn');
+    if (sb && sb.disabled) {
+        sb.disabled = false;
+        sb.innerHTML = 'Compare Rates <img src="images/btn-arrow.webp" alt="icon">';
+    }
+    if (typeof refreshButtons === 'function') refreshButtons();
 });
 
 
@@ -819,41 +862,76 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
 //PHONE_NUMBER
-jQuery(document).on("input", ".phone", function () {
-    let number = jQuery(this).val().replace(/\D/g, "");   // remove non-digits
+document.addEventListener("input", function (e) {
+    var fld = e.target;
+    if (!fld.classList || !fld.classList.contains("phone")) return;
+
+    var number = fld.value.replace(/\D/g, "");   // remove non-digits
+
+    // strip the US country code so '1 555 867 5309' doesn't truncate to a wrong number
+    if (number.length === 11 && number.charAt(0) === "1") number = number.slice(1);
 
     // limit 10 digits
     if (number.length > 10) number = number.slice(0, 10);
 
     // format XXX-XXX-XXXX
-    let formatted = number;
+    var formatted = number;
     if (number.length > 6) {
         formatted = number.replace(/(\d{3})(\d{3})(\d+)/, "$1-$2-$3");
     } else if (number.length > 3) {
         formatted = number.replace(/(\d{3})(\d+)/, "$1-$2");
     }
 
-    jQuery(this).val(formatted);
+    if (fld.value !== formatted) fld.value = formatted;
+
+    // setting .value fires no input event — re-validate and re-persist the masked value
+    // (the element-level persistence listener already ran with the pre-mask value)
+    if (typeof checkAddressPhone === 'function') checkAddressPhone();
+    if (fld.id) ssSet('quiz_fld_' + fld.id, fld.value);
 });
 
 
 // Populate DOB dropdowns
 (function() {
+    var monthSelect = document.getElementById("dobMonth");
     var daySelect = document.getElementById("dobDay");
     var yearSelect = document.getElementById("dobYear");
-    for (var d = 1; d <= 31; d++) {
-        var opt = document.createElement("option");
-        opt.value = d < 10 ? "0" + d : "" + d;
-        opt.textContent = d;
-        daySelect.appendChild(opt);
+
+    function rebuildDays(){
+        var m = parseInt(monthSelect.value, 10);
+        var y = parseInt(yearSelect.value, 10) || 2000; // leap-friendly until a year is picked
+        var max = m ? new Date(y, m, 0).getDate() : 31;
+        var current = daySelect.value;
+        while (daySelect.options.length > 1) daySelect.remove(1);
+        for (var d = 1; d <= max; d++) {
+            var opt = document.createElement("option");
+            opt.value = d < 10 ? "0" + d : "" + d;
+            opt.textContent = d;
+            daySelect.appendChild(opt);
+        }
+        if (current && parseInt(current, 10) <= max) {
+            daySelect.value = current;
+        } else {
+            // removing the selected option makes the browser auto-pick the first day —
+            // never silently change the user's DOB; force a re-pick instead
+            daySelect.selectedIndex = 0;
+        }
     }
+
+    rebuildDays();
+    window.rebuildDobDays = rebuildDays;
+
     var currentYear = new Date().getFullYear();
-    for (var y = currentYear; y >= currentYear - 100; y--) {
+    // consent language requires the applicant to be at least 18
+    for (var y = currentYear - 18; y >= currentYear - 100; y--) {
         var opt = document.createElement("option");
         opt.value = "" + y;
         opt.textContent = y;
         yearSelect.appendChild(opt);
     }
+
+    monthSelect.addEventListener("change", rebuildDays);
+    yearSelect.addEventListener("change", rebuildDays);
 })();
 
 
@@ -869,15 +947,40 @@ const dobMonth = document.getElementById("dobMonth");
 const dobDay = document.getElementById("dobDay");
 const dobYear = document.getElementById("dobYear");
 
+// Buttons are never hard-disabled: a tap must always either advance or explain why not.
+// .btn-inactive is the grey "not ready yet" look; the click handlers do the real gating.
+function setInactive(btn, inactive){
+    btn.classList.toggle('btn-inactive', inactive);
+}
+
+function showError(id, msg){
+    var el = document.getElementById(id);
+    if (el){ el.textContent = msg; el.hidden = false; }
+}
+
+function clearError(id, fields){
+    var el = document.getElementById(id);
+    if (el) el.hidden = true;
+    (fields || []).forEach(function(f){ f.classList.remove('input-error'); });
+}
+
+function dobValid(){
+    if (dobMonth.value === "" || dobDay.value === "" || dobYear.value === "") return false;
+    var m = parseInt(dobMonth.value, 10), d = parseInt(dobDay.value, 10), y = parseInt(dobYear.value, 10);
+    var dt = new Date(y, m - 1, d);
+    return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d && dt <= new Date();
+}
+
 function checkDob(){
-    const dob = dobMonth.value !== "" && dobDay.value !== "" && dobYear.value !== "";
-    contactContinueBtn.disabled = !dob;
+    setInactive(contactContinueBtn, !dobValid());
+    clearError('dobError', [dobMonth, dobDay, dobYear]);
 }
 
 function checkAddressPhone(){
     const address = document.getElementById("address").value.trim();
     const phone = document.getElementById("phone").value.replace(/\D/g, "");
-    addressContinueBtn.disabled = !(address.length > 0 && phone.length === 10);
+    setInactive(addressContinueBtn, !(address.length > 0 && phone.length === 10));
+    clearError('addressError', [document.getElementById("address"), document.getElementById("phone")]);
 }
 
 function checkNameEmail(){
@@ -885,7 +988,53 @@ function checkNameEmail(){
     const last = document.getElementById("lastName").value.trim();
     const email = document.getElementById("email").value.trim();
     const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    submitBtn.disabled = !(first.length > 0 && last.length > 0 && emailOk);
+    setInactive(submitBtn, !(first.length > 0 && last.length > 0 && emailOk));
+    clearError('nameEmailError', [document.getElementById("firstName"), document.getElementById("lastName"), document.getElementById("email")]);
+}
+
+function refreshButtons(){
+    checkDob();
+    checkAddressPhone();
+    checkNameEmail();
+}
+
+function continueDob(){
+    var fields = [dobMonth, dobDay, dobYear];
+    clearError('dobError', fields);
+
+    var empty = fields.filter(function(f){ return f.value === ""; });
+    if (empty.length){
+        empty.forEach(function(f){ f.classList.add('input-error'); });
+        showError('dobError', 'Please enter your date of birth to continue.');
+        return;
+    }
+    if (!dobValid()){
+        fields.forEach(function(f){ f.classList.add('input-error'); });
+        showError('dobError', 'Please enter a valid date of birth.');
+        return;
+    }
+    show('step-10');
+}
+
+function continueAddress(){
+    var addressFld = document.getElementById("address");
+    var phoneFld = document.getElementById("phone");
+    clearError('addressError', [addressFld, phoneFld]);
+
+    var problems = [];
+    if (addressFld.value.trim().length === 0){
+        addressFld.classList.add('input-error');
+        problems.push('street address');
+    }
+    if (phoneFld.value.replace(/\D/g, "").length !== 10){
+        phoneFld.classList.add('input-error');
+        problems.push('10-digit phone number');
+    }
+    if (problems.length){
+        showError('addressError', 'Please enter your ' + problems.join(' and ') + ' to continue.');
+        return;
+    }
+    show('step-11');
 }
 
 dobMonth.addEventListener("change", checkDob);
@@ -896,6 +1045,59 @@ document.getElementById("phone").addEventListener("input", checkAddressPhone);
 document.getElementById("firstName").addEventListener("input", checkNameEmail);
 document.getElementById("lastName").addEventListener("input", checkNameEmail);
 document.getElementById("email").addEventListener("input", checkNameEmail);
+
+
+// =========================
+// ANSWER PERSISTENCE
+// Reload / tab restore / bounce-and-return must never lose progress
+// =========================
+
+var QUIZ_RADIO_GROUPS = ['gender', 'house', 'income'];
+var QUIZ_FIELDS = ['dobMonth', 'dobDay', 'dobYear', 'address', 'phone', 'firstName', 'lastName', 'email'];
+
+document.addEventListener('change', function(e){
+    var t = e.target;
+    if (t.type === 'radio' && t.name){
+        var group = document.querySelectorAll('input[name="' + t.name + '"]');
+        for (var i = 0; i < group.length; i++){
+            if (group[i] === t) ssSet('quiz_ans_' + t.name, String(i));
+        }
+    }
+});
+
+QUIZ_FIELDS.forEach(function(id){
+    var f = document.getElementById(id);
+    var evt = (f.tagName === 'SELECT') ? 'change' : 'input';
+    f.addEventListener(evt, function(){ ssSet('quiz_fld_' + id, f.value); });
+});
+
+function restoreAnswers(){
+    QUIZ_RADIO_GROUPS.forEach(function(name){
+        var idx = ssGet('quiz_ans_' + name);
+        if (idx === null) return;
+        var group = document.querySelectorAll('input[name="' + name + '"]');
+        if (group[+idx]) group[+idx].checked = true;
+    });
+
+    var m = ssGet('quiz_fld_dobMonth'), d = ssGet('quiz_fld_dobDay'), y = ssGet('quiz_fld_dobYear');
+    if (m !== null) dobMonth.value = m;
+    if (y !== null) dobYear.value = y;
+    if (window.rebuildDobDays) window.rebuildDobDays(); // clamp the day list before restoring the day
+    if (d !== null) dobDay.value = d;
+
+    ['address', 'phone', 'firstName', 'lastName', 'email'].forEach(function(id){
+        var v = ssGet('quiz_fld_' + id);
+        var f = document.getElementById(id);
+        if (v !== null && f) f.value = v;
+    });
+}
+
+function clearSavedProgress(){
+    ssRemove('quiz_step');
+    ssRemove('quiz_path');
+    QUIZ_RADIO_GROUPS.forEach(function(name){ ssRemove('quiz_ans_' + name); });
+    QUIZ_FIELDS.forEach(function(id){ ssRemove('quiz_fld_' + id); });
+}
 </script>
 
 <script>
@@ -906,109 +1108,151 @@ var API_KEY = "b04f5463d194e2227fe5ae4cbf9e586da2c2cb503601ae97bbf908c7d3e6c917"
 function submitLead(e) {
     e.preventDefault();
 
-    var btn = document.getElementById("submitBtn");
-    btn.disabled = true;
-    btn.textContent = "Submitting...";
-
-    // Get zip from URL params (passed from index.html)
-    var urlParams = new URLSearchParams(window.location.search);
-    var zip = urlParams.get("zip") || "60610";
-
-    // Build DOB from dropdowns as MM/DD/YYYY
-    var dob = document.getElementById("dobMonth").value + "/" + document.getElementById("dobDay").value + "/" + document.getElementById("dobYear").value;
-
-    var phoneVal = document.getElementById("phone").value.replace(/\D/g, "");
-    var addressVal = document.getElementById("address").value.trim();
-    var firstVal = document.getElementById("firstName").value.trim();
-    var lastVal = document.getElementById("lastName").value.trim();
-    var emailVal = document.getElementById("email").value.trim();
-
-    // Get gender from step 8
-    var genderInputs = document.querySelectorAll('input[name="gender"]');
-    var gender = "";
-    genderInputs.forEach(function(inp, i) {
-        if (inp.checked) gender = i === 0 ? "Male" : "Female";
-    });
-
-    // Get household size from step 5
-    var householdSize = "";
-    var houseInputs = document.querySelectorAll('input[name="house"]');
-    houseInputs.forEach(function(inp, i) {
-        if (inp.checked) householdSize = (i === 4) ? "5" : String(i + 1);
-    });
-
-    // Get income from step 7
-    var incomeSelected = document.querySelector('input[name="income"]:checked');
-    var incomeVal = incomeSelected ? incomeSelected.value : "";
-
-    // Get tracking params from sessionStorage (captured on landing)
-    var landingUrl = sessionStorage.getItem('landing_url') || window.location.href;
-
-    // Read ClickFlare click_id from cookie (set by the CF tracking script)
-    // Falls back to cpid from sessionStorage if cookie not available
-    var cfClickId = (document.cookie.match(/(^| )cf_click_id=([^;]+)/) || [])[2] || '';
-    var subId = cfClickId || sessionStorage.getItem('utm_cpid') || '';
-
-    var payload = {
-        Request: {
-            Format: "JSON",
-            Mode: "full",
-            Key: API_KEY,
-            API_Action: "pingPostLead",
-            TYPE: "33",
-            SRC: "shophealthratescomenew",
-            IP_Address: "75.2.92.149",
-            Landing_Page: landingUrl,
-            Sub_ID: subId,
-            First_Name: firstVal,
-            Last_Name: lastVal,
-            Email: emailVal,
-            Primary_Phone: phoneVal,
-            Address: addressVal,
-            Zip: zip,
-            DOB: dob,
-            Gender: gender,
-            Household_Size: householdSize,
-            Estimated_Household_Income: incomeVal
-        }
-    };
-
-    console.log("Submitting lead payload:", JSON.stringify(payload, null, 2));
-
-    // Build URL-encoded form body
-    var formBody = Object.keys(payload.Request).map(function(key) {
-        return encodeURIComponent(key) + '=' + encodeURIComponent(payload.Request[key]);
-    }).join('&');
-
-    // Fire-and-forget POST to Boberdoo (no-cors since we don't need the response)
-    fetch("https://leosourceinsurance.leadportal.com/new_api/api.php", {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: formBody
-    }).catch(function(err) {
-        console.error("Lead submission error:", err);
-    });
-
-    // Fire ClickFlare lead conversion client-side (full click_id, bypasses Boberdoo truncation)
-    if (subId) {
-        var img = new Image();
-        img.src = 'https://leosourceclick.com/cf/cv?click_id=' + encodeURIComponent(subId);
+    // Deep links / history restore can land here with earlier steps invalid —
+    // never submit a lead with a broken DOB or phone; send the user to the gap instead
+    if (!dobValid()) {
+        lastTransitionAt = 0;
+        show('step-contact');
+        continueDob();
+        return false;
+    }
+    if (document.getElementById("address").value.trim().length === 0 ||
+        document.getElementById("phone").value.replace(/\D/g, "").length !== 10) {
+        lastTransitionAt = 0;
+        show('step-10');
+        continueAddress();
+        return false;
     }
 
-    // Log lead to Sheety via our API (non-blocking)
-    try {
-        navigator.sendBeacon('/api/log-lead', JSON.stringify({
-            click_id: subId,
-            phone: phoneVal,
-            zip: zip,
-            first_name: firstVal,
-            last_name: lastVal,
-            timestamp: new Date().toISOString()
-        }));
-    } catch (_) {}
+    // Validate with visible feedback — never a silent dead submit button
+    var firstFld = document.getElementById("firstName");
+    var lastFld = document.getElementById("lastName");
+    var emailFld = document.getElementById("email");
+    clearError('nameEmailError', [firstFld, lastFld, emailFld]);
 
-    // Redirect to thank-you page after brief delay for the POST to fire
+    var bad = [];
+    if (firstFld.value.trim().length === 0) bad.push(firstFld);
+    if (lastFld.value.trim().length === 0) bad.push(lastFld);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailFld.value.trim())) bad.push(emailFld);
+    if (bad.length) {
+        bad.forEach(function(f){ f.classList.add('input-error'); });
+        showError('nameEmailError', 'Please enter your name and a valid email address to continue.');
+        return false;
+    }
+
+    var btn = document.getElementById("submitBtn");
+    btn.disabled = true; // hard-disable here is correct: prevents double submission
+    btn.textContent = "Submitting...";
+
+    var phoneVal = document.getElementById("phone").value.replace(/\D/g, "");
+
+    try {
+        // Get zip from URL params (passed from index.html), or saved session if resumed
+        var urlParams = new URLSearchParams(window.location.search);
+        var zip = urlParams.get("zip") || ssGet('quiz_zip') || "60610";
+
+        // Build DOB from dropdowns as MM/DD/YYYY
+        var dob = document.getElementById("dobMonth").value + "/" + document.getElementById("dobDay").value + "/" + document.getElementById("dobYear").value;
+
+        var addressVal = document.getElementById("address").value.trim();
+        var firstVal = firstFld.value.trim();
+        var lastVal = lastFld.value.trim();
+        var emailVal = emailFld.value.trim();
+
+        // Get gender from step 8
+        var genderInputs = document.querySelectorAll('input[name="gender"]');
+        var gender = "";
+        genderInputs.forEach(function(inp, i) {
+            if (inp.checked) gender = i === 0 ? "Male" : "Female";
+        });
+
+        // Get household size from step 5
+        var householdSize = "";
+        var houseInputs = document.querySelectorAll('input[name="house"]');
+        houseInputs.forEach(function(inp, i) {
+            if (inp.checked) householdSize = (i === 4) ? "5" : String(i + 1);
+        });
+
+        // Get income from step 7
+        var incomeSelected = document.querySelector('input[name="income"]:checked');
+        var incomeVal = incomeSelected ? incomeSelected.value : "";
+
+        // Get tracking params from sessionStorage (captured on landing)
+        var landingUrl = ssGet('landing_url') || window.location.href;
+
+        // Read ClickFlare click_id from cookie (set by the CF tracking script)
+        // Falls back to cpid from sessionStorage if cookie not available
+        var cfClickId = (document.cookie.match(/(^| )cf_click_id=([^;]+)/) || [])[2] || '';
+        var subId = cfClickId || ssGet('utm_cpid') || '';
+
+        var payload = {
+            Request: {
+                Format: "JSON",
+                Mode: "full",
+                Key: API_KEY,
+                API_Action: "pingPostLead",
+                TYPE: "33",
+                SRC: "shophealthratescomenew",
+                IP_Address: "75.2.92.149",
+                Landing_Page: landingUrl,
+                Sub_ID: subId,
+                First_Name: firstVal,
+                Last_Name: lastVal,
+                Email: emailVal,
+                Primary_Phone: phoneVal,
+                Address: addressVal,
+                Zip: zip,
+                DOB: dob,
+                Gender: gender,
+                Household_Size: householdSize,
+                Estimated_Household_Income: incomeVal
+            }
+        };
+
+        console.log("Submitting lead payload:", JSON.stringify(payload, null, 2));
+
+        // Build URL-encoded form body
+        var formBody = Object.keys(payload.Request).map(function(key) {
+            return encodeURIComponent(key) + '=' + encodeURIComponent(payload.Request[key]);
+        }).join('&');
+
+        // Fire-and-forget POST to Boberdoo (no-cors since we don't need the response;
+        // keepalive so the request survives the redirect / tab close)
+        fetch("https://leosourceinsurance.leadportal.com/new_api/api.php", {
+            method: "POST",
+            mode: "no-cors",
+            keepalive: true,
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: formBody
+        }).catch(function(err) {
+            console.error("Lead submission error:", err);
+        });
+
+        // Fire ClickFlare lead conversion client-side (full click_id, bypasses Boberdoo truncation)
+        if (subId) {
+            var img = new Image();
+            img.src = 'https://leosourceclick.com/cf/cv?click_id=' + encodeURIComponent(subId);
+        }
+
+        // Log lead to Sheety via our API (non-blocking)
+        try {
+            navigator.sendBeacon('/api/log-lead', JSON.stringify({
+                click_id: subId,
+                phone: phoneVal,
+                zip: zip,
+                first_name: firstVal,
+                last_name: lastVal,
+                timestamp: new Date().toISOString()
+            }));
+        } catch (_) {}
+
+        clearSavedProgress(); // funnel complete — don't resume a finished quiz
+    } catch (err) {
+        console.error("Lead submission error:", err);
+    }
+
+    // Redirect to thank-you page after brief delay for the POST to fire.
+    // Outside the try block: the user must never be stranded on 'Submitting...'
     setTimeout(function() {
         window.location.href = "thank-you.html?phone=" + encodeURIComponent(phoneVal);
     }, 1500);
@@ -1026,6 +1270,11 @@ function initAutocomplete() {
     componentRestrictions: { country: "us" }
   });
   autocomplete.setFields(["address_components", "formatted_address"]);
+  // picking a suggestion sets the value without an input event — re-validate and persist
+  autocomplete.addListener("place_changed", function () {
+    if (typeof checkAddressPhone === 'function') checkAddressPhone();
+    ssSet('quiz_fld_address', input.value);
+  });
 }
 </script>
 
