@@ -50,6 +50,34 @@ No package manager, bundler, or build tools. Edit HTML/CSS/JS files directly. Pr
 - **No framework** — vanilla HTML. jQuery 3.6.0 is still loaded on index/thank-you/privacy/term, but **quiz.html is deliberately jQuery-free** (a failed jQuery load used to brick the DOB step — do not reintroduce it there).
 - **Fonts** are self-hosted in `css/` (Inter, Public Sans) via `@font-face` in `style.css`.
 
+## Protected Tracking Codes — DO NOT MODIFY
+
+The following tracking scripts are **critical revenue infrastructure**. Removing or altering any of them will silently break paid ad attribution, costing real money with zero visible error. They are wrapped in `<!-- TRACKING CODES — DO NOT MODIFY -->` guard comments in the HTML files.
+
+**Never modify, move, or remove these blocks unless explicitly asked to change tracking:**
+
+| Script | Files | Purpose |
+|--------|-------|---------|
+| Ringba JS (`//b-js.ringba.com/CA28ed...`) | index.html, quiz.html, thank-you.html, thank-you-v2.html | Call tracking — swaps `(800) 758-1590` with a tracked pool number |
+| Microsoft Clarity (`clarity.ms/tag/x0ifuryqyz`) | index.html, quiz.html | Session recording & heatmaps |
+| UTM/tracking param capture (sessionStorage) | index.html, quiz.html | Saves `gclid`, `cpid`, `wbraid`, `gbraid` from ad click URL |
+| ClickFlare tag (`leosourceclick.com/cf/tags/6a0fb09a...`) | index.html, quiz.html | Ad click attribution — sets `cf_click_id` cookie |
+| ClickFlare → Ringba bridge (`_rgba_tags` push) | index.html, quiz.html, thank-you.html, thank-you-v2.html | Passes ClickFlare click_id to Ringba as a connection tag |
+| ClickFlare lead conversion pixel (`leosourceclick.com/cf/cv`) | quiz.html (submitLead function) | Fires on form submit to record lead conversion |
+| ClickFlare phone_call pixel (`leosourceclick.com/cf/cv?ct=phone_call`) | thank-you.html, thank-you-v2.html | Fires on Connect Streams button click |
+| Connect Streams lightbox (module 1966) | index.html, thank-you.html, thank-you-v2.html | "Connect Me Now" callback widget |
+| Sheety lead logging (`sendBeacon('/api/log-lead')`) | quiz.html (submitLead function) | Logs every lead to Google Sheet for diagnostics |
+| Sub_ID pipeline (`cf_click_id` → Boberdoo `Sub_ID`) | quiz.html (submitLead function) | Passes click_id through to Boberdoo for server-side postback |
+| Phone number `+18007581590` | All pages | Static number that Ringba replaces — changing it breaks call tracking |
+
+### Rules for the Telegram agent and all automated edits
+
+1. **Do not rewrite `<head>` sections** — tracking scripts live there. Add new content to `<body>` instead.
+2. **Do not replace entire files** — use targeted edits. Full-file rewrites silently drop tracking blocks.
+3. **Do not change `tel:+18007581590`** links — Ringba's JS looks for this exact number to swap.
+4. **Do not remove or rename `submitLead()`** in quiz.html — the ClickFlare pixel and Sheety beacon are inside it.
+5. **If a change touches `<head>` or `submitLead`**, verify all tracking scripts are still present before committing.
+
 ## Quiz Funnel Architecture (rewritten 2026-06-12)
 
 quiz.html was rewritten after a P0 "0 conversions" investigation (24 Clarity sessions). The reported "redirect to homepage" bug was never a redirect — root causes were a direction-blind `screenHistory.pop()` popstate handler, total progress loss on reload (volatile in-memory state + stale pushState entries → dead back presses → cross-document exit to the landing page), and a 300ms `setTimeout` inside `show()` that raced the Back gesture and made taps feel dead.

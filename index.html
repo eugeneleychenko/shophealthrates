@@ -19,6 +19,12 @@
 <link rel="preload" href="css/PublicSans-ExtraBold.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="css/PublicSans-Black.woff2" as="font" type="font/woff2" crossorigin>
 
+<!-- ========================== TRACKING CODES — DO NOT MODIFY ========================== -->
+<!-- These scripts power paid ad attribution (ClickFlare, Ringba, Clarity).                -->
+<!-- Removing or altering them will break conversion tracking and cost real ad dollars.     -->
+<!-- If you need to change tracking, update AGENTS.md first and get explicit approval.      -->
+<!-- ==================================================================================== -->
+
 <!-- Ringba call tracking tag -->
 <script src="//b-js.ringba.com/CA28ed4f20fb83474ba9ae68fe41e6ab78" async></script>
 
@@ -30,9 +36,16 @@
     })(window, document, "clarity", "script", "x0ifuryqyz");
 </script>
 
+<!-- ======================== END TRACKING CODES ======================== -->
+
 </head>
 
 <body>
+
+<!-- ========================== TRACKING CODES — DO NOT MODIFY ========================== -->
+<!-- UTM capture, ClickFlare tag, and ClickFlare→Ringba bridge below.                     -->
+<!-- Removing or altering them will break conversion tracking and cost real ad dollars.     -->
+<!-- ==================================================================================== -->
 
 <!-- Capture UTM/tracking params from ad click into sessionStorage -->
 <script>
@@ -69,6 +82,8 @@
   setTimeout(function() { clearInterval(intervalId); }, 15000);
 })();
 </script>
+
+<!-- ======================== END TRACKING CODES ======================== -->
 
 <!-------Top-Caption------->
 <div class="top_caption">
@@ -555,6 +570,10 @@ $(document).ready(function(e){
 
 </script>
 
+<!-- ========================== TRACKING CODES — DO NOT MODIFY ========================== -->
+<!-- Connect Streams module (commented out on homepage — see note). Do not remove.         -->
+<!-- ==================================================================================== -->
+
 <!-- Connect Streams Module — COMMENTED OUT: requires a phone number to render.
      The lightbox is a callback widget (rings the user's phone), so it only works
      on post-form pages where we have the lead's number. To enable on the homepage,
@@ -586,5 +605,7 @@ g3cm('send', 'init');
 </script>
 <script src="https://api.connectstreams.com/js/connectme-v3.min.js" async="async"></script>
 -->
+
+<!-- ======================== END TRACKING CODES ======================== -->
 </body>
 </html>
