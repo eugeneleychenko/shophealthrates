@@ -631,8 +631,8 @@ Webhook 57 ("ClickFlare Sale Postback") is Active and correctly configured (`CRM
 | System | Have API? | Blocker |
 |--------|-----------|---------|
 | Boberdoo | ✅ Key 107 | ❌ IP-whitelisted to `209.122.209.0/24` — remove whitelist to use from CLI |
-| ClickFlare | ❌ Username/password only | Need API key from `app.clickflare.com` → Settings |
-| Ringba | ❌ Username/password only | Need API token from `app.ringba.com` → Settings |
+| ClickFlare | ⚠️ Public API exists | Key generates at Settings → Security, but our account returns **HTTP 403 "PublicApi access forbidden"** — Public API is a plan/permission gate, not enabled for us yet. Key auths (not 401) but lacks the grant. |
+| Ringba | ✅ Long-lived API token | Generated at `app.ringba.com` → Security → API Access Tokens (MFA only at creation, never expires). Header `Authorization: Token <t>`. **In use by `/check`'s fast path.** |
 
 ---
 
@@ -678,7 +678,7 @@ The `otpauth://` URI has the form `otpauth://totp/<account>?secret=<BASE32>&issu
 
 ### Note
 
-This delivers the **code on demand** — it does not log into Ringba by itself (that would need Playwright to fill username/password + this code). Ringba still has no API token (username/password only), per the API Access Gaps table above. **The `/check` flow below builds exactly that** — automated login using this same TOTP.
+This delivers the **code on demand** — it does not log into Ringba by itself (that would need Playwright to fill username/password + this code). It powers the **browser fallback** in `/check`. The primary `/check` path no longer needs it: Ringba now has a long-lived API token (see updated API Access Gaps table above), so the fast path skips login + TOTP entirely.
 
 ---
 
@@ -686,42 +686,66 @@ This delivers the **code on demand** — it does not log into Ringba by itself (
 
 ### Overview
 
-Ask the bot whether a phone-call conversion actually landed across our systems. Send `/check` (or `/call`, or just @mention a question like "did the conversion occur today?" / "check the call today") and a cloud agent logs into **both Ringba and ClickFlare** with a headless browser, verifies the call end-to-end, and replies in the group.
+Ask the bot whether a phone-call conversion actually landed across our systems. Send `/check` (or `/call`, or just @mention a question like "did the conversion occur today?" / "check the call today") and a cloud agent verifies today's call(s) end-to-end and replies in the group.
 
-### Flow
+### Flow (fast path — official APIs, ~1s, no browser; built 2026-06-17)
 
 ```
 /check  (or @leosource_bot "did the conversion occur today?")
   → api/telegram.js: isCallConversionQuestion()/`/check` → handleCallCheck()
     → repository_dispatch event_type "telegram-call-check"  (NOT the code-change workflow)
   → .github/workflows/telegram-call-check.yml  (READ-ONLY — never edits/pushes/deploys)
-    → installs agent-browser + headless Chrome (shared cache with telegram-agent)
-    → resolves RINGBA_TOTP_SECRET (GH secret if set, else pulled from Vercel via VERCEL_TOKEN)
-    → claude-code-action drives the browser:
-        Ringba  : $RINGBA_USERNAME/$RINGBA_PASSWORD + `node scripts/ringba-totp.js` for 2FA
-        ClickFlare: $CLICKFLARE_USERNAME/$CLICKFLARE_PASSWORD
-        checks today's call: connected? converted? pixel fire 200? click_id + txid populated?
-        matching ClickFlare conversion (matched on click_id + seconds; Ringba=PT, ClickFlare=ET)
-    → writes verdict to _agent_inbox/REPLY.txt → posted to the group (+ evidence screenshots)
+    → STEP 1 (fast): node scripts/call-check-api.mjs
+        Ringba REST API (Authorization: Token $RINGBA_API_TOKEN) — NO login, NO 2FA:
+          POST /v2/{acct}/calllogs        → today's calls (connected/duration/duplicate)
+          POST /v2/{acct}/calllogs/detail → per-call events[] + message-tags[]:
+            • the PixelFire event => httpStatusCode (200?), failReason, AND the literal
+              fired URL (recordingUrl) — so we read the click_id/txid/payout ACTUALLY sent
+            • hasConverted / ConvertedCall event
+            • cpid tag (type "ClickFlare ID") vs the clickid tag
+        ClickFlare REST API (optional cross-check, header api-key: $CLICKFLARE_API_KEY):
+          POST /api/event-logs filtered EventType=conversion AND ClickID=<sent click_id>
+          → currently returns HTTP 403 (Public API not enabled for our plan) → degrades
+            gracefully; verdict relies on Ringba's pixel-fire 200 + payload.
+        → writes verdict to _agent_inbox/REPLY.txt, exit 0.
+    → STEP 2 (browser fallback): runs ONLY if step 1 wrote no REPLY.txt
+        (e.g. tokens unset or API shape drift). Installs agent-browser, resolves
+        RINGBA_TOTP_SECRET, drives the old headless Ringba+ClickFlare scrape.
+    → _agent_inbox/REPLY.txt → posted to the group.
 ```
+
+Each fallback step is gated with `if: hashFiles('_agent_inbox/REPLY.txt') == ''`, so the heavy Chrome/TOTP machinery is skipped whenever the fast path succeeds.
 
 ### Components
 
 | File | Detail |
 |------|--------|
 | `api/telegram.js` | `/^\/(check\|call\|conversion)\b/` + `isCallConversionQuestion()` → `handleCallCheck()` → dispatch `telegram-call-check`. Lead-FORM questions still route to `/diagnose` (Sheety); a `call to action`/`cta` mention is excluded so copy-change requests don't mis-route. |
-| `.github/workflows/telegram-call-check.yml` | The cloud check. `permissions: contents: read` (read-only). Replies via `_agent_inbox/REPLY.txt`. |
-| `scripts/ringba-totp.js` | Standalone TOTP generator (same algorithm as `getRingbaMfa`); prints the current code for the headless 2FA step. `.vercelignore`d so it isn't served publicly. |
+| `scripts/call-check-api.mjs` | **Fast path.** Node 18+, no deps. Reads `RINGBA_API_TOKEN` (+ optional `RINGBA_ACCOUNT_ID`, `CLICKFLARE_API_KEY`). Resolves "today" in America/New_York → UTC for Ringba; ET string + `timezone` for ClickFlare. On success writes `_agent_inbox/REPLY.txt` + exit 0; on missing token / network / shape error writes nothing + exits non-zero → triggers fallback. `DEBUG=1` dumps shapes; `LOOKBACK_DAYS=N` widens the window for testing. |
+| `.github/workflows/telegram-call-check.yml` | Cloud check. `permissions: contents: read`. Step 1 fast API check (`continue-on-error`), gated browser fallback, reply step unchanged. |
+| `scripts/ringba-totp.js` | TOTP generator for the **fallback** 2FA only. `.vercelignore`d. |
 
 ### Secrets (GitHub Actions)
 
-`RINGBA_USERNAME`, `RINGBA_PASSWORD`, `CLICKFLARE_USERNAME`, `CLICKFLARE_PASSWORD` (set from `.env`). `RINGBA_TOTP_SECRET` is pulled from Vercel at runtime via `VERCEL_TOKEN`, or set it directly as a GH secret to skip the pull. `CLAUDE_CODE_OAUTH_TOKEN` + `TELEGRAM_BOT_TOKEN` already exist.
+Fast path: **`RINGBA_API_TOKEN`** (required), `RINGBA_ACCOUNT_ID` (optional — `RA7a01677bfe7a4ed59ad998a84bfcef13`, else auto-resolved), `CLICKFLARE_API_KEY` (optional cross-check). Fallback (kept until the fast path is proven over a week, then deletable): `RINGBA_USERNAME`, `RINGBA_PASSWORD`, `CLICKFLARE_USERNAME`, `CLICKFLARE_PASSWORD`, `RINGBA_TOTP_SECRET` (or pulled from Vercel via `VERCEL_TOKEN`). `CLAUDE_CODE_OAUTH_TOKEN` + `TELEGRAM_BOT_TOKEN` already exist.
+
+> ⚠️ The two API tokens bypass MFA and (Ringba) never expire — treat as high-value secrets: repo-scoped (not org), no `pull_request_target`, rotate on a calendar.
+
+### Live findings from the API (validated 2026-06-17) — REAL BUGS to fix in Ringba
+
+Running the fast path against today's calls surfaced that **every** "ClickFlare Phone Call Postback" pixel fires **HTTP 200** but with a broken payload:
+
+- **`txid=` is EMPTY** on all calls — the `txid=[Call:InboundCallId]` mapping is NOT resolving. (This was the exact thing `/check` was built to confirm; it is currently failing.)
+- **`payout=` is EMPTY** — `[publisherPayoutAmount]` not resolving (separate from the by-design $0 revenue).
+- **`click_id=` is the Google `clickid` tag (a UUID), NOT the ClickFlare `cpid`** (type "ClickFlare ID", e.g. `6a04cfc67e76d10012a65767`). ClickFlare needs its own click id to attribute — so conversions likely aren't matching. Some calls send `click_id=` empty entirely.
+
+→ Fix is in the **Ringba pixel config** (U65 campaign → ClickFlare Phone Call Postback pixel URL): the token references for `click_id`, `txid`, `payout` are wrong/unresolved. Verify against `[connectionTag:cpid]`, `[Call:InboundCallId]`, `[publisherPayoutAmount]`. The fired URL the API returns is the ground truth for what's actually being sent.
 
 ### Notes / risks
 
-- Credentials are referenced via shell env expansion **inside** agent-browser commands, so values never print to the Action log.
-- The agent is told to report exactly what worked vs. didn't rather than invent a result if a login is blocked.
-- Main risk: a SaaS login blocking the datacenter IP or throwing an extra device challenge in headless CI. Hardening option if that happens: use Ringba/ClickFlare **API tokens** instead of browser scraping, or a self-hosted runner.
+- The fast path is read-only REST — no credentials printed, no browser, ~1s vs minutes; eliminates the datacenter-IP-login-block risk for the normal case.
+- ClickFlare's Public API is **plan-gated** (HTTP 403 today). To get destination-side conversion confirmation, enable Public API access on the ClickFlare plan/role, then `CLICKFLARE_API_KEY` cross-check activates automatically. Until then, Ringba's pixel-fire 200 + the parsed payload is the proof.
+- The script uses defensive, case-insensitive field lookup and exits non-zero on any unexpected shape, so vendor schema drift falls back to the browser rather than emitting a wrong verdict.
 
 ---
 

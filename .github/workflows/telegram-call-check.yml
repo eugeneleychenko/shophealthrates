@@ -49,23 +49,6 @@ jobs:
         with:
           ref: main
 
-      - name: Cache agent-browser + Chrome
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.agent-browser
-            ~/.npm/_npx
-          key: agent-browser-${{ runner.os }}-v1
-
-      - name: Install agent-browser
-        run: |
-          if ! command -v agent-browser &>/dev/null; then
-            npm i -g agent-browser
-          fi
-          if [ ! -d "$HOME/.agent-browser" ] || [ -z "$(ls -A $HOME/.agent-browser 2>/dev/null)" ]; then
-            agent-browser install --with-deps
-          fi
-
       - name: Acknowledge in Telegram
         if: env.CHAT_ID != '' && env.MESSAGE_ID != ''
         env:
@@ -76,10 +59,49 @@ jobs:
             -d "$(jq -n --arg c "$CHAT_ID" --arg m "$MESSAGE_ID" \
               '{chat_id:$c, message_id:($m|tonumber), reaction:[{type:"emoji",emoji:"👀"}]}')" >/dev/null || true
 
+      # ── FAST PATH (preferred): official Ringba (+ optional ClickFlare) REST APIs.
+      # No browser, no login, no 2FA — ~1s. Writes _agent_inbox/REPLY.txt on success.
+      # If RINGBA_API_TOKEN isn't set yet, or the API shape is off, it exits non-zero
+      # and writes nothing, so the browser fallback below takes over automatically.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Fast call check (Ringba/ClickFlare API)
+        id: fastcheck
+        continue-on-error: true
+        env:
+          RINGBA_API_TOKEN: ${{ secrets.RINGBA_API_TOKEN }}
+          RINGBA_ACCOUNT_ID: ${{ secrets.RINGBA_ACCOUNT_ID }}
+          CLICKFLARE_API_KEY: ${{ secrets.CLICKFLARE_API_KEY }}
+        run: node scripts/call-check-api.mjs
+
+      # ── BROWSER FALLBACK: only runs if the fast path produced no verdict.
+      # `hashFiles` returns '' when _agent_inbox/REPLY.txt doesn't exist.
+      - name: Cache agent-browser + Chrome
+        if: hashFiles('_agent_inbox/REPLY.txt') == ''
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.agent-browser
+            ~/.npm/_npx
+          key: agent-browser-${{ runner.os }}-v1
+
+      - name: Install agent-browser
+        if: hashFiles('_agent_inbox/REPLY.txt') == ''
+        run: |
+          if ! command -v agent-browser &>/dev/null; then
+            npm i -g agent-browser
+          fi
+          if [ ! -d "$HOME/.agent-browser" ] || [ -z "$(ls -A $HOME/.agent-browser 2>/dev/null)" ]; then
+            agent-browser install --with-deps
+          fi
+
       # Get the Ringba 2FA seed. Prefer a RINGBA_TOTP_SECRET GitHub secret if set;
       # otherwise pull it from Vercel env using VERCEL_TOKEN (already a secret), so
       # no one has to copy the seed into GitHub by hand.
       - name: Resolve Ringba TOTP secret
+        if: hashFiles('_agent_inbox/REPLY.txt') == ''
         env:
           GH_TOTP_SECRET: ${{ secrets.RINGBA_TOTP_SECRET }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -102,7 +124,8 @@ jobs:
             echo "::warning::Could not resolve RINGBA_TOTP_SECRET — Ringba login will fail at 2FA."
           fi
 
-      - name: Verify the call with Claude (Ringba + ClickFlare)
+      - name: Verify the call with Claude (Ringba + ClickFlare) — browser fallback
+        if: hashFiles('_agent_inbox/REPLY.txt') == ''
         uses: anthropics/claude-code-action@v1
         env:
           RINGBA_USERNAME: ${{ secrets.RINGBA_USERNAME }}
