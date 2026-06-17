@@ -57,6 +57,26 @@ module.exports = async (req, res) => {
     return res.status(200).send("diagnose handled");
   }
 
+  // Handle /ringba (or /mfa) locally — returns the current Ringba MFA code.
+  if (/^\/(ringba|mfa)\b/i.test(text)) {
+    await handleRingbaMfa(chatId);
+    return res.status(200).send("mfa handled");
+  }
+
+  // Handle /check (or /call, /conversion) — verify a phone-call conversion
+  // end-to-end by logging into Ringba + ClickFlare in the cloud. This dispatches
+  // the telegram-call-check workflow (NOT the code-change one).
+  if (/^\/(check|call|conversion)\b/i.test(text)) {
+    const botUserName = process.env.TELEGRAM_BOT_USERNAME || "";
+    const arg = text
+      .replace(/^\/(check|call|conversion)(@\w+)?/i, "")
+      .split("@" + botUserName).join("")
+      .trim();
+    const from = (msg.from && (msg.from.username || msg.from.first_name)) || "client";
+    await handleCallCheck(chatId, msg.message_id, arg, from);
+    return res.status(200).send("call-check handled");
+  }
+
   let mode = null;
   if (/^\/change\b/i.test(text)) mode = "change";
   else if (/^\/(ask|q)\b/i.test(text)) mode = "ask";
@@ -69,6 +89,16 @@ module.exports = async (req, res) => {
   if (mode === "auto" && isLeadStatusQuestion(text)) {
     await handleDiagnose(chatId, "recent");
     return res.status(200).send("lead-status handled");
+  }
+
+  // Fast-path: @mention questions about a phone call / conversion (Ringba /
+  // ClickFlare) spin up the headless cloud check instead of the code-change agent.
+  if (mode === "auto" && isCallConversionQuestion(text)) {
+    const botUserName = process.env.TELEGRAM_BOT_USERNAME || "";
+    const q = text.split("@" + botUserName).join("").trim();
+    const from = (msg.from && (msg.from.username || msg.from.first_name)) || "client";
+    await handleCallCheck(chatId, msg.message_id, q, from);
+    return res.status(200).send("call-check handled");
   }
 
   const request = text
@@ -215,6 +245,115 @@ function isLeadStatusQuestion(text) {
     /postback.{0,30}(fire|work|sent|correct)/i.test(t) ||
     /(click.*id|click_id).{0,30}(present|there|missing|found|empty)/i.test(t)
   );
+}
+
+// Detect whether an @mention is asking about a PHONE CALL / conversion (Ringba +
+// ClickFlare) so we route it to the headless cloud check instead of the
+// code-change agent. Lead-form questions are handled separately (Sheety) above.
+function isCallConversionQuestion(text) {
+  const t = text.toLowerCase();
+  // "call to action" / "cta" is website copy, not a phone call — never a check.
+  if (/call[\s-]?to[\s-]?action|\bcta\b/.test(t)) return false;
+  return (
+    /\bringba\b/.test(t) ||
+    /\bclickflare\b/.test(t) ||
+    /\bconversion\b/.test(t) ||
+    /\bconverted\b/.test(t) ||
+    /\bcall\b.{0,40}\b(today|convert|occur|happen|fire|track|through|count|log|connect|came|come|go|went)\b/.test(t) ||
+    /\b(check|verify|did|was|any)\b.{0,25}\bcall(s)?\b/.test(t)
+  );
+}
+
+// Dispatch the telegram-call-check workflow, which logs into Ringba + ClickFlare
+// with a headless browser and verifies a call end-to-end, then replies itself.
+async function handleCallCheck(chatId, messageId, request, from) {
+  let dispatch;
+  try {
+    dispatch = await fetch(
+      `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/dispatches`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+          Accept: "application/vnd.github+json",
+          "X-GitHub-Api-Version": "2022-11-28",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          event_type: "telegram-call-check",
+          client_payload: {
+            request: request || "",
+            chat_id: chatId,
+            message_id: messageId,
+            from: from || "client",
+          },
+        }),
+      }
+    );
+  } catch (err) {
+    await tgSend(chatId, "⚠️ Couldn't start the call check (" + err.message + "). Eugene will take a look.");
+    return;
+  }
+  if (!dispatch.ok) {
+    await tgSend(chatId, `⚠️ Couldn't start the call check (GitHub ${dispatch.status}). Eugene will take a look.`);
+    return;
+  }
+  if (messageId) await tgReact(chatId, messageId, "👀");
+}
+
+// Generate the current Ringba MFA (TOTP) code from a base32 secret seed.
+// Pure Node crypto — no dependencies. The seed lives in env var
+// RINGBA_TOTP_SECRET (never commit it). RFC 6238: HMAC-SHA1, 6 digits, 30s step.
+function getRingbaMfa(secret) {
+  const crypto = require("crypto");
+
+  // Decode base32 (RFC 4648) secret → bytes.
+  const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  const clean = String(secret).toUpperCase().replace(/=+$/, "").replace(/\s+/g, "");
+  let bits = "";
+  for (const ch of clean) {
+    const val = ALPHABET.indexOf(ch);
+    if (val === -1) continue;
+    bits += val.toString(2).padStart(5, "0");
+  }
+  const bytes = [];
+  for (let i = 0; i + 8 <= bits.length; i += 8) {
+    bytes.push(parseInt(bits.slice(i, i + 8), 2));
+  }
+  const key = Buffer.from(bytes);
+
+  // 8-byte big-endian counter = floor(unixTime / 30).
+  let counter = Math.floor(Date.now() / 1000 / 30);
+  const buf = Buffer.alloc(8);
+  for (let i = 7; i >= 0; i--) {
+    buf[i] = counter & 0xff;
+    counter = Math.floor(counter / 256);
+  }
+
+  const hmac = crypto.createHmac("sha1", key).update(buf).digest();
+  const offset = hmac[hmac.length - 1] & 0x0f;
+  const code =
+    ((hmac[offset] & 0x7f) << 24) |
+    ((hmac[offset + 1] & 0xff) << 16) |
+    ((hmac[offset + 2] & 0xff) << 8) |
+    (hmac[offset + 3] & 0xff);
+  return String(code % 1000000).padStart(6, "0");
+}
+
+// /ringba (or /mfa) command — reply with the live Ringba MFA code.
+async function handleRingbaMfa(chatId) {
+  const secret = process.env.RINGBA_TOTP_SECRET;
+  if (!secret) {
+    await tgSend(chatId, "⚠️ RINGBA_TOTP_SECRET not configured.");
+    return;
+  }
+  try {
+    const code = getRingbaMfa(secret);
+    const secsLeft = 30 - (Math.floor(Date.now() / 1000) % 30);
+    await tgSend(chatId, "🔐 Ringba MFA: " + code + "\n(valid ~" + secsLeft + "s)");
+  } catch (err) {
+    await tgSend(chatId, "❌ Couldn't generate MFA code: " + err.message);
+  }
 }
 
 // /diagnose command — query lead logs from Sheety.co

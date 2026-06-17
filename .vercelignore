@@ -6,6 +6,7 @@
 screenshots/
 _agent_inbox/
 api_docs/
+scripts/
 *.md
 .DS_Store
 **/.DS_Store

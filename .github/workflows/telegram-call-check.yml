@@ -1,0 +1,208 @@
+name: Telegram call check
+
+# Fired by the Vercel webhook (api/telegram.js) when someone asks the bot to
+# check whether a phone-call conversion landed, e.g. "/check" or
+# "@bot did the conversion occur today?".
+#
+# This workflow logs into Ringba AND ClickFlare with a headless browser
+# (agent-browser), verifies a call end-to-end, and replies in Telegram. It is
+# READ-ONLY — it never edits code, pushes, or deploys.
+on:
+  repository_dispatch:
+    types: [telegram-call-check]
+  # Lets you test from the GitHub UI / CLI without Telegram.
+  workflow_dispatch:
+    inputs:
+      request:
+        description: "What to check (e.g. 'did today's call convert?'). Blank = today's calls."
+        required: false
+        default: ""
+      chat_id:
+        description: "Telegram chat id to reply to (blank = just print to the run log)"
+        required: false
+      message_id:
+        description: "Telegram message id for reactions (optional)"
+        required: false
+
+# Allow several checks to run; they don't touch shared state.
+concurrency:
+  group: telegram-call-check-${{ github.event.client_payload.message_id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # claude-code-action needs OIDC
+    env:
+      CHAT_ID: ${{ github.event.client_payload.chat_id || github.event.inputs.chat_id }}
+      REQUEST: ${{ github.event.client_payload.request || github.event.inputs.request }}
+      FROM: ${{ github.event.client_payload.from || 'manual' }}
+      MESSAGE_ID: ${{ github.event.client_payload.message_id || github.event.inputs.message_id || '' }}
+      # Project identifiers (not secrets) — same as telegram-agent.yml. Used to
+      # pull RINGBA_TOTP_SECRET out of Vercel env without a human in the loop.
+      VERCEL_ORG_ID: team_JRdKsTQV9jopaKxc8wlsdvGz
+      VERCEL_PROJECT_ID: prj_LIvg3Gu0WLw6fhgBAivjIojFR4y9
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Cache agent-browser + Chrome
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.agent-browser
+            ~/.npm/_npx
+          key: agent-browser-${{ runner.os }}-v1
+
+      - name: Install agent-browser
+        run: |
+          if ! command -v agent-browser &>/dev/null; then
+            npm i -g agent-browser
+          fi
+          if [ ! -d "$HOME/.agent-browser" ] || [ -z "$(ls -A $HOME/.agent-browser 2>/dev/null)" ]; then
+            agent-browser install --with-deps
+          fi
+
+      - name: Acknowledge in Telegram
+        if: env.CHAT_ID != '' && env.MESSAGE_ID != ''
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setMessageReaction" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n --arg c "$CHAT_ID" --arg m "$MESSAGE_ID" \
+              '{chat_id:$c, message_id:($m|tonumber), reaction:[{type:"emoji",emoji:"👀"}]}')" >/dev/null || true
+
+      # Get the Ringba 2FA seed. Prefer a RINGBA_TOTP_SECRET GitHub secret if set;
+      # otherwise pull it from Vercel env using VERCEL_TOKEN (already a secret), so
+      # no one has to copy the seed into GitHub by hand.
+      - name: Resolve Ringba TOTP secret
+        env:
+          GH_TOTP_SECRET: ${{ secrets.RINGBA_TOTP_SECRET }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          secret="$GH_TOTP_SECRET"
+          if [ -z "$secret" ] && [ -n "$VERCEL_TOKEN" ]; then
+            npm i -g vercel >/dev/null 2>&1 || true
+            vercel pull --yes --environment=production --token "$VERCEL_TOKEN" >/dev/null 2>&1 || true
+            vercel env pull /tmp/vercel.env --yes --environment=production --token "$VERCEL_TOKEN" >/dev/null 2>&1 || true
+            if [ -f /tmp/vercel.env ]; then
+              secret=$(grep -E '^RINGBA_TOTP_SECRET=' /tmp/vercel.env | head -1 | cut -d= -f2- | sed 's/^"//; s/"$//')
+              rm -f /tmp/vercel.env
+            fi
+          fi
+          if [ -n "$secret" ]; then
+            echo "::add-mask::$secret"
+            echo "RINGBA_TOTP_SECRET=$secret" >> "$GITHUB_ENV"
+            echo "Ringba TOTP secret resolved (length ${#secret})."
+          else
+            echo "::warning::Could not resolve RINGBA_TOTP_SECRET — Ringba login will fail at 2FA."
+          fi
+
+      - name: Verify the call with Claude (Ringba + ClickFlare)
+        uses: anthropics/claude-code-action@v1
+        env:
+          RINGBA_USERNAME: ${{ secrets.RINGBA_USERNAME }}
+          RINGBA_PASSWORD: ${{ secrets.RINGBA_PASSWORD }}
+          RINGBA_TOTP_SECRET: ${{ env.RINGBA_TOTP_SECRET }}
+          CLICKFLARE_USERNAME: ${{ secrets.CLICKFLARE_USERNAME }}
+          CLICKFLARE_PASSWORD: ${{ secrets.CLICKFLARE_PASSWORD }}
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: >-
+            --max-turns 120
+            --allowedTools "Read,Write,Bash(agent-browser:*),Bash(node scripts/ringba-totp.js),Bash(cat:*),Bash(ls:*),Bash(grep:*),Bash(echo:*)"
+          prompt: |
+            You are a verification agent running headless in CI. A teammate (${{ env.FROM }})
+            asked, in the LeoSource Telegram group, to check whether a phone-call
+            conversion landed in our tracking systems.
+
+            THEIR MESSAGE: "${{ env.REQUEST }}"
+            (If blank or generic, check TODAY's call(s).)
+
+            FIRST read AGENTS.md in this repo — it documents the Ringba→ClickFlare
+            phone-call funnel: the pixel "ClickFlare Phone Call Postback" on the U65
+            campaign fires to leosourceclick.com/cf/cv on Connected; the U65 targets
+            are configured Revenue $0 / no payout BY DESIGN, so $0 revenue does NOT
+            mean "no conversion". The website's static number is (800) 758-1590, which
+            Ringba DNI-swaps with a pool number.
+
+            ── CREDENTIALS (already in your shell env — NEVER print them; reference the
+               env vars directly inside agent-browser commands so the values never
+               appear in output):
+              • Ringba:     $RINGBA_USERNAME / $RINGBA_PASSWORD  (login at https://app.ringba.com)
+              • Ringba 2FA: run `node scripts/ringba-totp.js` to print the CURRENT 6-digit
+                            code the moment the 2FA field appears (codes rotate every 30s;
+                            generate it right before you type it).
+              • ClickFlare: $CLICKFLARE_USERNAME / $CLICKFLARE_PASSWORD (login at https://app.clickflare.com)
+
+            ── HOW TO DRIVE THE BROWSER (agent-browser manages its own headless Chrome):
+              agent-browser open <url> && agent-browser wait --load networkidle
+              agent-browser snapshot -i        # get @e refs for fields/buttons
+              agent-browser fill @e2 "$RINGBA_USERNAME"     # env expands in the shell, not printed
+              agent-browser type @e5 "$(node scripts/ringba-totp.js)"   # 2FA
+              agent-browser click @e7
+              Re-snapshot after every navigation. Use `agent-browser eval` to read tables.
+              Take screenshots of the key evidence to ./_agent_inbox/ (mkdir it first):
+              ringba.png (the call's Events/pixel detail) and clickflare.png (the
+              conversion/postback log).
+
+            ── TIMEZONES: Ringba displays Pacific (UTC-8); ClickFlare displays Eastern.
+               "Today's" 7:32 call in Ringba ≈ 9-10am in ClickFlare. Match on the click_id
+               and the seconds, not the hour.
+
+            ── WHAT TO VERIFY (this is the whole point):
+              1. RINGBA — open Reporting → Call Logs for today. For the call(s):
+                 • Did it connect? Duration? Is it a duplicate?
+                 • Expand the call → Events tab → find "Pixel Fire": status code 200 / "OK"?
+                 • Read the FIRED pixel URL. Does click_id populate? Does txid populate?
+                   (We just fixed txid=[Call:InboundCallId]; confirm it now carries a value.)
+                 • Is there a "Converted" event?
+              2. CLICKFLARE — Logs → Event Logs (filter Event Type = conversion) for today,
+                 and the Postback Status tab. Does a conversion exist whose Click ID matches
+                 the click_id Ringba posted? Is the Conversion Transaction (txid) populated?
+
+            ── THEN write a SHORT, plain-text verdict (no markdown headers, a few lines,
+               Telegram-friendly) to ./_agent_inbox/REPLY.txt. Lead with a clear YES/NO on
+               whether the conversion landed, then the supporting facts (connected + duration,
+               pixel 200, click_id matched in ClickFlare, txid populated or not). Note $0
+               revenue is expected/by-design. If you could not complete a step (e.g. a login
+               was blocked), say exactly what worked and what didn't so a human can finish —
+               do NOT invent results. Keep it under ~12 lines.
+
+      - name: Reply to Telegram
+        if: always()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: |
+          send() {
+            [ -z "$CHAT_ID" ] && { echo "----- REPLY -----"; echo "$1"; return; }
+            curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+              -H "Content-Type: application/json" \
+              -d "$(jq -n --arg c "$CHAT_ID" --arg t "$1" '{chat_id:$c, text:$t}')" >/dev/null
+          }
+          react() {
+            { [ -z "$CHAT_ID" ] || [ -z "$MESSAGE_ID" ]; } && return
+            curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setMessageReaction" \
+              -H "Content-Type: application/json" \
+              -d "$(jq -n --arg c "$CHAT_ID" --arg m "$MESSAGE_ID" --arg e "$1" \
+                '{chat_id:$c, message_id:($m|tonumber), reaction:[{type:"emoji",emoji:$e}]}')" >/dev/null
+          }
+          send_photo() {
+            { [ -z "$CHAT_ID" ] || [ ! -f "$1" ]; } && return
+            curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendPhoto" \
+              -F "chat_id=$CHAT_ID" -F "photo=@$1" -F "caption=$2" >/dev/null
+          }
+
+          if [ -f _agent_inbox/REPLY.txt ] && [ -s _agent_inbox/REPLY.txt ]; then
+            send "$(cat _agent_inbox/REPLY.txt)"
+            send_photo "_agent_inbox/ringba.png" "Ringba call detail"
+            send_photo "_agent_inbox/clickflare.png" "ClickFlare conversion log"
+            react "✅"
+          else
+            react "❌"
+            send "🤔 I couldn't complete the call check automatically (the login or a page may have blocked the headless browser). Eugene will take a look at the run logs."
+          fi

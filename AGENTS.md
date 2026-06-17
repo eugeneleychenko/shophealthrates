@@ -512,6 +512,7 @@ Address the bot explicitly (normal group chatter is ignored):
 - `/change <edit>` — make a code change + deploy. e.g. `/change make the hero subheadline say "Save Big on Health Insurance"`
 - `/ask <question>` — answer a question about the site/repo (reads code + git history); **no edit, no deploy**. e.g. `/ask where did we add quiz links today?`
 - `@leosource_bot <text>` — "auto": the agent decides from the message whether it's a question or a change.
+- `/ringba` (or `/mfa`) — returns the current Ringba 6-digit MFA (TOTP) code. Handled locally in `api/telegram.js` (no GitHub Actions, no deploy) — instant reply like `🔐 Ringba MFA: 123456 (valid ~14s)`.
 - Attach a screenshot to the same message; the agent reads it as an image (red marks usually flag the target element).
 - If a change request is too ambiguous, the bot replies with a clarifying question instead of guessing.
 
@@ -528,7 +529,7 @@ The webhook passes a `mode` hint (`change`/`ask`/`auto`); the workflow classifie
 | Workflow | `.github/workflows/telegram-agent.yml` |
 | Triggers | `repository_dispatch` (`telegram-change-request`) + `workflow_dispatch` (manual) |
 | GitHub Actions secrets | `TELEGRAM_BOT_TOKEN`, `VERCEL_TOKEN`, `CLAUDE_CODE_OAUTH_TOKEN` |
-| Vercel env (Production) | `TELEGRAM_SECRET`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `GITHUB_TOKEN`, `ALLOWED_CHAT_IDS` |
+| Vercel env (Production) | `TELEGRAM_SECRET`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `GITHUB_TOKEN`, `ALLOWED_CHAT_IDS`, `SHEETY_URL`, `RINGBA_TOTP_SECRET` |
 | Webhook's `GITHUB_TOKEN` | fine-grained PAT on `shophealthrates`, **Contents: Read & write** |
 | Compute cost | runs on the Claude subscription via `CLAUDE_CODE_OAUTH_TOKEN` (not metered API billing) |
 
@@ -632,6 +633,95 @@ Webhook 57 ("ClickFlare Sale Postback") is Active and correctly configured (`CRM
 | Boberdoo | ✅ Key 107 | ❌ IP-whitelisted to `209.122.209.0/24` — remove whitelist to use from CLI |
 | ClickFlare | ❌ Username/password only | Need API key from `app.clickflare.com` → Settings |
 | Ringba | ❌ Username/password only | Need API token from `app.ringba.com` → Settings |
+
+---
+
+## Ringba MFA via Telegram (`/ringba`) — built 2026-06-17
+
+### Overview
+
+Ringba login requires a TOTP MFA code (authenticator-app style). Instead of opening an authenticator app, send `/ringba` (or `/mfa`) in the Telegram group and the bot replies with the current 6-digit code.
+
+### How it works
+
+TOTP codes are a deterministic function of `(secret seed + current time)` — RFC 6238 (HMAC-SHA1, 6 digits, 30s step). With the original base32 seed from the authenticator QR, any code-gen produces the same code Ringba expects. No browser, no 1Password at runtime, no Ringba login automation — this only **generates the code**.
+
+```
+/ringba (or /mfa) in the group
+  → api/telegram.js (handled locally — like /diagnose, no GitHub Actions)
+  → getRingbaMfa(process.env.RINGBA_TOTP_SECRET)  [pure Node crypto, zero deps]
+  → bot replies: 🔐 Ringba MFA: 123456 (valid ~14s)
+```
+
+### Components
+
+| File | Detail |
+|------|--------|
+| `api/telegram.js` | `/^\/(ringba\|mfa)\b/` handler → `handleRingbaMfa()` → `getRingbaMfa()` (base32 decode + HMAC-SHA1 TOTP, Node built-in `crypto`, no dependency) |
+
+### Setup
+
+The seed lives **only** in a Vercel env var — never committed to the repo or this file:
+
+```bash
+vercel env add RINGBA_TOTP_SECRET production
+# paste the base32 secret from the authenticator otpauth:// URI (the secret= value)
+```
+
+The `otpauth://` URI has the form `otpauth://totp/<account>?secret=<BASE32>&issuer=Ringba` — only the `secret=` portion is needed. Get it from 1Password (TOTP field) or the original QR setup.
+
+### Security
+
+- The seed grants **permanent** ability to mint Ringba MFA codes. Treat it like a password.
+- Stored as a Vercel env var only; `.vercelignore` keeps `.md`/`.env` out of public deploys but **do not** add the seed to either anyway.
+- If the seed leaks, regenerate MFA in Ringba (`app.ringba.com` → security settings) to rotate it, then update `RINGBA_TOTP_SECRET`.
+
+### Note
+
+This delivers the **code on demand** — it does not log into Ringba by itself (that would need Playwright to fill username/password + this code). Ringba still has no API token (username/password only), per the API Access Gaps table above. **The `/check` flow below builds exactly that** — automated login using this same TOTP.
+
+---
+
+## Call-conversion check via Telegram (`/check`) — built 2026-06-17
+
+### Overview
+
+Ask the bot whether a phone-call conversion actually landed across our systems. Send `/check` (or `/call`, or just @mention a question like "did the conversion occur today?" / "check the call today") and a cloud agent logs into **both Ringba and ClickFlare** with a headless browser, verifies the call end-to-end, and replies in the group.
+
+### Flow
+
+```
+/check  (or @leosource_bot "did the conversion occur today?")
+  → api/telegram.js: isCallConversionQuestion()/`/check` → handleCallCheck()
+    → repository_dispatch event_type "telegram-call-check"  (NOT the code-change workflow)
+  → .github/workflows/telegram-call-check.yml  (READ-ONLY — never edits/pushes/deploys)
+    → installs agent-browser + headless Chrome (shared cache with telegram-agent)
+    → resolves RINGBA_TOTP_SECRET (GH secret if set, else pulled from Vercel via VERCEL_TOKEN)
+    → claude-code-action drives the browser:
+        Ringba  : $RINGBA_USERNAME/$RINGBA_PASSWORD + `node scripts/ringba-totp.js` for 2FA
+        ClickFlare: $CLICKFLARE_USERNAME/$CLICKFLARE_PASSWORD
+        checks today's call: connected? converted? pixel fire 200? click_id + txid populated?
+        matching ClickFlare conversion (matched on click_id + seconds; Ringba=PT, ClickFlare=ET)
+    → writes verdict to _agent_inbox/REPLY.txt → posted to the group (+ evidence screenshots)
+```
+
+### Components
+
+| File | Detail |
+|------|--------|
+| `api/telegram.js` | `/^\/(check\|call\|conversion)\b/` + `isCallConversionQuestion()` → `handleCallCheck()` → dispatch `telegram-call-check`. Lead-FORM questions still route to `/diagnose` (Sheety); a `call to action`/`cta` mention is excluded so copy-change requests don't mis-route. |
+| `.github/workflows/telegram-call-check.yml` | The cloud check. `permissions: contents: read` (read-only). Replies via `_agent_inbox/REPLY.txt`. |
+| `scripts/ringba-totp.js` | Standalone TOTP generator (same algorithm as `getRingbaMfa`); prints the current code for the headless 2FA step. `.vercelignore`d so it isn't served publicly. |
+
+### Secrets (GitHub Actions)
+
+`RINGBA_USERNAME`, `RINGBA_PASSWORD`, `CLICKFLARE_USERNAME`, `CLICKFLARE_PASSWORD` (set from `.env`). `RINGBA_TOTP_SECRET` is pulled from Vercel at runtime via `VERCEL_TOKEN`, or set it directly as a GH secret to skip the pull. `CLAUDE_CODE_OAUTH_TOKEN` + `TELEGRAM_BOT_TOKEN` already exist.
+
+### Notes / risks
+
+- Credentials are referenced via shell env expansion **inside** agent-browser commands, so values never print to the Action log.
+- The agent is told to report exactly what worked vs. didn't rather than invent a result if a login is blocked.
+- Main risk: a SaaS login blocking the datacenter IP or throwing an extra device challenge in headless CI. Hardening option if that happens: use Ringba/ClickFlare **API tokens** instead of browser scraping, or a self-hosted runner.
 
 ---
 
