@@ -139,6 +139,20 @@ jobs:
                             generate it right before you type it).
               • ClickFlare: $CLICKFLARE_USERNAME / $CLICKFLARE_PASSWORD (login at https://app.clickflare.com)
 
+            ── LOGIN RECIPES (fields confirmed headless on 2026-06-17 — always re-snapshot
+               for live @refs, don't hard-code them):
+              ClickFlare — open https://app.clickflare.com (redirects to /login):
+                snapshot -i → fill the "example@domain.com" textbox with "$CLICKFLARE_USERNAME",
+                fill the "••••••••" textbox with "$CLICKFLARE_PASSWORD", click "Sign In".
+                Lands on https://app.clickflare.com/<acct>/dashboard. NO MFA.
+              Ringba — open https://app.ringba.com (redirects to /#/login):
+                snapshot -i → fill the "EMAIL ADDRESS" textbox with "$RINGBA_USERNAME",
+                fill the "PASSWORD" textbox with "$RINGBA_PASSWORD", click "LOGIN".
+                A "Multi-factor Authentication" screen appears with ONE "MFA CODE" textbox
+                and a "VERIFY" button. Generate the code the instant before typing it:
+                  agent-browser type @<mfacode-ref> "$(node scripts/ringba-totp.js)"
+                then click "VERIFY". Then go to Reporting → Call Logs.
+
             ── HOW TO DRIVE THE BROWSER (agent-browser manages its own headless Chrome):
               agent-browser open <url> && agent-browser wait --load networkidle
               agent-browser snapshot -i        # get @e refs for fields/buttons
