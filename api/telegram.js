@@ -83,6 +83,17 @@ module.exports = async (req, res) => {
   else if (botUser && text.includes("@" + botUser)) mode = "auto";
   if (!mode) return res.status(200).send("not addressed");
 
+  // Fast-path: Boberdoo lead-DATA questions (TrustedForm cert, TCPA, lead status)
+  // need the getLeadDetails API (via the Fixie static IP), NOT the Sheety log —
+  // Sheety only has timestamp/click_id/phone/zip/name. Checked BEFORE the Sheety
+  // path so "...in Boberdoo, does it have TrustedForm?" routes to the API.
+  if (mode === "auto" && isBoberdooLeadQuestion(text)) {
+    const q = text.split("@" + botUser).join("").trim();
+    const from = (msg.from && (msg.from.username || msg.from.first_name)) || "client";
+    await handleLeadCheck(chatId, msg.message_id, q, from);
+    return res.status(200).send("lead-check handled");
+  }
+
   // Fast-path: @mention questions about lead status are answered directly from
   // the Sheety log without spinning up GitHub Actions. This avoids the "I can't
   // query directly" response Claude Code gives when it lacks the env vars.
@@ -247,6 +258,14 @@ function isLeadStatusQuestion(text) {
   );
 }
 
+// Detect whether an @mention needs the Boberdoo lead API (getLeadDetails) rather
+// than the Sheety submission log — i.e. it asks about Boberdoo lead DATA fields
+// (TrustedForm cert, TCPA, Jornaya LeadiD) that Sheety doesn't carry.
+function isBoberdooLeadQuestion(text) {
+  const t = text.toLowerCase();
+  return /\bboberdoo\b/.test(t) || /trusted\s*form|trustedform|trusted_form|\bcert\b|\btcpa\b|leadid|jornaya/.test(t);
+}
+
 // Detect whether an @mention is asking about a PHONE CALL / conversion (Ringba +
 // ClickFlare) so we route it to the headless cloud check instead of the
 // code-change agent. Lead-form questions are handled separately (Sheety) above.
@@ -296,6 +315,38 @@ async function handleCallCheck(chatId, messageId, request, from) {
   }
   if (!dispatch.ok) {
     await tgSend(chatId, `⚠️ Couldn't start the call check (GitHub ${dispatch.status}). Eugene will take a look.`);
+    return;
+  }
+  if (messageId) await tgReact(chatId, messageId, "👀");
+}
+
+// Dispatch the telegram-lead-check workflow, which queries Boberdoo getLeadDetails
+// (via the Fixie static IP) and replies with the lead's status + TrustedForm cert.
+async function handleLeadCheck(chatId, messageId, request, from) {
+  let dispatch;
+  try {
+    dispatch = await fetch(
+      `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/dispatches`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+          Accept: "application/vnd.github+json",
+          "X-GitHub-Api-Version": "2022-11-28",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          event_type: "telegram-lead-check",
+          client_payload: { request: request || "", chat_id: chatId, message_id: messageId, from: from || "client" },
+        }),
+      }
+    );
+  } catch (err) {
+    await tgSend(chatId, "⚠️ Couldn't start the lead check (" + err.message + "). Eugene will take a look.");
+    return;
+  }
+  if (!dispatch.ok) {
+    await tgSend(chatId, `⚠️ Couldn't start the lead check (GitHub ${dispatch.status}). Eugene will take a look.`);
     return;
   }
   if (messageId) await tgReact(chatId, messageId, "👀");

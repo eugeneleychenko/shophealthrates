@@ -16,12 +16,16 @@ name: Telegram lead check
 # Vercel env). The "Egress IP" step prints Fixie's static IP — whitelist it on
 # the key's "Restrict Only These Functions With This Allowed IP List" box.
 on:
+  # Fired by the Vercel webhook (api/telegram.js) for Boberdoo/TrustedForm lead
+  # questions, e.g. "@bot does the last lead have TrustedForm?".
+  repository_dispatch:
+    types: [telegram-lead-check]
   workflow_dispatch:
     inputs:
       request:
-        description: "Ask (e.g. 'today', 'yesterday', an email, a phone, or 'lead <id>'). Blank = today's summary."
+        description: "Ask (e.g. 'last lead trustedform', an email, a phone, or 'lead <id>')."
         required: false
-        default: "today"
+        default: "last lead trustedform"
       chat_id:
         description: "Telegram chat id to reply to (blank = just print to the run log)"
         required: false
@@ -37,9 +41,9 @@ jobs:
   check:
     runs-on: ubuntu-latest
     env:
-      CHAT_ID: ${{ github.event.inputs.chat_id }}
-      MESSAGE_ID: ${{ github.event.inputs.message_id }}
-      REQUEST: ${{ github.event.inputs.request }}
+      CHAT_ID: ${{ github.event.client_payload.chat_id || github.event.inputs.chat_id }}
+      MESSAGE_ID: ${{ github.event.client_payload.message_id || github.event.inputs.message_id }}
+      REQUEST: ${{ github.event.client_payload.request || github.event.inputs.request }}
       # Project identifiers (not secrets), used to pull FIXIE_URL from Vercel env.
       VERCEL_ORG_ID: team_JRdKsTQV9jopaKxc8wlsdvGz
       VERCEL_PROJECT_ID: prj_LIvg3Gu0WLw6fhgBAivjIojFR4y9
