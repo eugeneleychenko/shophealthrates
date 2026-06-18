@@ -789,6 +789,43 @@ Since the Public API tier is out, we reverse-engineered the dashboard's own API 
 2. `.b2a/skill/scripts/discover.mjs --run .b2a/run` → OpenAPI spec + `client.mjs` + report (saved under `.b2a/run/api-spec/` (git-ignored, regenerable)).
 3. Key endpoints: `POST api.clickflare.io/api/event-logs` (conversions), `POST .../api/postback-status/logs` (Conversion-API send results incl. Google Ads errors), `GET .../api/integration`. Re-run the capture to refresh if the API drifts.
 
+### Answering "are these calls registered as conversions?" — reply format (agreed 2026-06-17)
+
+There is **no single "conversion"** — a phone call passes a 5-hop chain, and the answer differs at each hop. Always report the chain, never one ✅/❌:
+
+```
+① Ringba converted ─▶ ② Pixel fired ─▶ ③ Payload valid ─▶ ④ ClickFlare recorded ─▶ ⑤ Google Ads uploaded
+   (connected ≥120s)    (HTTP 200)        (right click_id)     (phone_call conv)        (CF→GAds "Call" 200)
+```
+
+Agreed scope:
+- **Identifier = time window** ("the 3 calls ~2pm"), not last-4/callId. (Filter Ringba calls by `callDt`.)
+- **"Conversion" = full chain** — must land in ClickFlare **and** upload to Google Ads. Anything short of ⑤ is *not* a confirmed conversion.
+
+Output shape: **verdict line → scannable table (one row per call, columns ①–⑤) → a trace block only for calls with a problem**, each hop printing the **actual ID** so it's traceable to the source dashboard.
+
+```
+"the 3 calls ~2pm" · today (ET) · window 1:45–2:15 PM
+Verdict (full-chain): ⚠️ 0 of 3 confirmed end-to-end.
+
+  time     caller            ①Ring ②Pix ③Pay ④CF  ⑤GAds
+  1:52 PM  (346) 449-7767     ✅    ✅   ❌   ❌   — n/a
+
+📞 1:52 PM · (346) 449-7767 · InboundCallId abc123
+   ① Ringba      ✅ connected 168s → Converted · payout $0 (by design)
+   ② Pixel       ✅ HTTP 200 → leosourceclick.com/cf/cv?…&ct=phone_call
+   ③ Payload     ❌ click_id=<google-uuid> (expected cpid 6a04cfc…5767) · txid=∅ · payout=∅
+   ④ ClickFlare  ❌ no phone_call conversion for that click_id (internal API)
+   ⑤ Google Ads  — not checked yet
+   ↳ Break at ③→④. Fix: U65 pixel tokens [connectionTag:cpid]/[Call:InboundCallId]/[publisherPayoutAmount].
+```
+
+Rules: first ❌ left-to-right is the **break point**; clean calls stay one table row; `$0` payout is **by design** (U65 targets pay $0) — never flag it; a hop we didn't check prints `—`, **never a fake ✅**.
+
+**Two gaps vs. this spec** (in `scripts/call-check-api.mjs` as of `0ae9aa3`, which confirms hops ①–④):
+1. **Time-window filter not implemented** — only phone-digit filter or all-of-today; needs to parse a time range and filter calls by `callDt`.
+2. **Hop ⑤ (Google Ads) not wired** — `postbackStatus()` exists in `clickflare-api.mjs` but is never called. To confirm: after a ClickFlare match, `postbackStatus({date})` filtered to `ClickID === sent click_id` **and** `IntegrationID === 6a0c88591da37d00129e5412` (LeoSource-Call), then report `IsError`/`StatusCode`. Until wired, the full-chain verdict tops out at "landed in ClickFlare" and ⑤ stays unverified.
+
 ---
 
 ## Commit Guidelines
