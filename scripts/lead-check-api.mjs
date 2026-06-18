@@ -55,6 +55,24 @@ function fail(msg, code = 1) {
 }
 if (!KEY) fail('BOBERDOO_ADMIN_KEY is not set (add it as a GitHub Actions secret).', 2);
 
+// Optional static-IP egress. getLeadDetails is a Boberdoo "sensitive" function
+// that REQUIRES an IP allowlist, and GitHub-hosted runners have no fixed IP — so
+// route the call through a static-IP proxy (Fixie) whose IP is whitelisted on the
+// key. Set FIXIE_URL (or HTTPS_PROXY). No proxy => direct egress (works only from
+// an already-whitelisted network, e.g. the office).
+let DISPATCHER = null;
+async function setupProxy() {
+  const proxy = process.env.FIXIE_URL || process.env.HTTPS_PROXY || process.env.LEAD_API_PROXY || '';
+  if (!proxy) { console.log('PROXY: none (direct egress).'); return; }
+  try {
+    const { ProxyAgent } = await import('undici');
+    DISPATCHER = new ProxyAgent(proxy);
+    console.log('PROXY: routing Boberdoo calls through the static-IP proxy.');
+  } catch (e) {
+    fail(`A proxy URL is set but undici is unavailable to route through it (${e.message}). In CI add a step: npm i undici.`);
+  }
+}
+
 // --- date helpers (UTC; widen by a day to dodge portal-timezone boundary) -----
 function ymd(d) { return d.toISOString().slice(0, 10); }
 function daysAgo(n) { const d = new Date(); d.setUTCDate(d.getUTCDate() - n); return d; }
@@ -67,7 +85,9 @@ async function getLeadDetails(extra) {
   ));
   let res, text;
   try {
-    res = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
+    const opts = { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body };
+    if (DISPATCHER) opts.dispatcher = DISPATCHER;
+    res = await fetch(API, opts);
     text = await res.text();
   } catch (e) {
     fail(`network error reaching ${HOST} (${e.message}). Likely the runner IP is outside the key's whitelist, or DNS/egress is blocked.`);
@@ -130,6 +150,7 @@ async function connectivityProbe() {
 }
 
 (async () => {
+  await setupProxy();
   await connectivityProbe();
   const email = (REQUEST.match(/[\w.+-]+@[\w-]+\.[\w.-]+/) || [])[0];
   const digits = REQUEST.replace(/[^\d]/g, '');

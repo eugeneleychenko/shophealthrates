@@ -1,16 +1,20 @@
 name: Telegram lead check
 
 # TEST-FIRST scaffold. Manual trigger only for now — NOT yet wired to Telegram
-# via repository_dispatch. The first goal is to confirm whether a GitHub-hosted
-# runner can reach Boberdoo's admin API (getLeadDetails). The admin key (107) is
-# IP-whitelisted to 209.122.209.0/24; hosted runners use rotating Azure IPs, so
-# this run reveals whether the whitelist blocks CI.
+# via repository_dispatch. Confirms whether CI can read leads from Boberdoo's
+# admin API (getLeadDetails).
 #
-# Run it:  gh workflow run "Telegram lead check" -f request="today"
-#   or:    gh workflow run "Telegram lead check" -f request="lead 17232825"
-#   or:    Actions tab → Telegram lead check → Run workflow.
+# getLeadDetails is a Boberdoo "sensitive" function that REQUIRES an IP allowlist,
+# and hosted runners have no fixed IP — so the call is routed through Fixie (a
+# static-IP proxy) whose IP is whitelisted on the admin key. FIXIE_URL is taken
+# from a repo secret, else pulled from the Vercel project env (same pattern as
+# telegram-call-check.yml's RINGBA_TOTP_SECRET).
 #
-# Requires repo secret BOBERDOO_ADMIN_KEY (the ID-107 admin key).
+# Run it:  gh workflow run "Telegram lead check" -f request="lead 17232849"
+#
+# Requires: secret BOBERDOO_ADMIN_KEY (read-only key), and FIXIE_URL (secret or
+# Vercel env). The "Egress IP" step prints Fixie's static IP — whitelist it on
+# the key's "Restrict Only These Functions With This Allowed IP List" box.
 on:
   workflow_dispatch:
     inputs:
@@ -36,6 +40,9 @@ jobs:
       CHAT_ID: ${{ github.event.inputs.chat_id }}
       MESSAGE_ID: ${{ github.event.inputs.message_id }}
       REQUEST: ${{ github.event.inputs.request }}
+      # Project identifiers (not secrets), used to pull FIXIE_URL from Vercel env.
+      VERCEL_ORG_ID: team_JRdKsTQV9jopaKxc8wlsdvGz
+      VERCEL_PROJECT_ID: prj_LIvg3Gu0WLw6fhgBAivjIojFR4y9
     steps:
       - uses: actions/checkout@v4
         with:
@@ -45,17 +52,51 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Show this runner's public egress IP (vs whitelist 209.122.209.0/24)
-        run: |
-          echo "Runner public IP(s):"
-          curl -s https://api.ipify.org || echo "(ipify unreachable)"
-          echo
+      - name: Install undici (proxy dispatcher for native fetch)
+        run: npm i undici
 
-      - name: Lead check (Boberdoo getLeadDetails)
+      # FIXIE_URL: prefer a repo secret; otherwise pull from the Vercel project
+      # env using VERCEL_TOKEN (so no one has to copy it into GitHub by hand).
+      - name: Resolve FIXIE_URL
+        env:
+          GH_FIXIE_URL: ${{ secrets.FIXIE_URL }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          url="$GH_FIXIE_URL"
+          if [ -z "$url" ] && [ -n "$VERCEL_TOKEN" ]; then
+            npm i -g vercel >/dev/null 2>&1 || true
+            vercel pull --yes --environment=production --token "$VERCEL_TOKEN" >/dev/null 2>&1 || true
+            vercel env pull /tmp/v.env --yes --environment=production --token "$VERCEL_TOKEN" >/dev/null 2>&1 || true
+            if [ -f /tmp/v.env ]; then
+              url=$(grep -E '^FIXIE_URL=' /tmp/v.env | head -1 | cut -d= -f2- | sed 's/^"//; s/"$//')
+              rm -f /tmp/v.env
+            fi
+          fi
+          if [ -n "$url" ]; then
+            echo "::add-mask::$url"
+            echo "FIXIE_URL=$url" >> "$GITHUB_ENV"
+            echo "FIXIE_URL resolved (length ${#url})."
+          else
+            echo "::warning::FIXIE_URL not resolved — the lead call will go direct and will be rejected by the IP whitelist."
+          fi
+
+      - name: Egress IP (direct vs through Fixie — whitelist the Fixie IP)
+        run: |
+          echo "Direct runner IP (NOT whitelistable — rotating Azure):"
+          curl -s https://api.ipify.org; echo
+          if [ -n "$FIXIE_URL" ]; then
+            echo "Static IP via Fixie (whitelist THIS on the Boberdoo key):"
+            for i in 1 2 3; do curl -s -x "$FIXIE_URL" https://api.ipify.org; echo; done | sort -u
+          else
+            echo "(FIXIE_URL unset — cannot show static IP)"
+          fi
+
+      - name: Lead check (Boberdoo getLeadDetails via Fixie)
         id: leadcheck
         continue-on-error: true
         env:
           BOBERDOO_ADMIN_KEY: ${{ secrets.BOBERDOO_ADMIN_KEY }}
+          FIXIE_URL: ${{ env.FIXIE_URL }}
         run: node scripts/lead-check-api.mjs
 
       - name: Report result
