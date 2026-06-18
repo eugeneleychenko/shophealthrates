@@ -101,8 +101,10 @@ async function getLeadDetails(extra) {
   const r = json.response || json;
   // Boberdoo signals problems via response.status / response.error.
   const status = (r && (r.status || r.Status) || '').toString().toLowerCase();
-  if (status === 'error' || r.error || r.Error) {
-    const detail = JSON.stringify(r.error || r.Error || r).slice(0, 200);
+  if (status === 'error' || r.error || r.Error || r.errors) {
+    // Boberdoo returns {"response":{"errors":{"error":"Authentication failed"}}}
+    // for a rejected key / non-whitelisted IP.
+    const detail = JSON.stringify(r.error || r.Error || r.errors || r).slice(0, 200);
     fail(`API error: ${detail}`);
   }
   let leads = r && r.leads && r.leads.lead;
