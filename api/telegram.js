@@ -257,10 +257,10 @@ function isCallConversionQuestion(text) {
   return (
     /\bringba\b/.test(t) ||
     /\bclickflare\b/.test(t) ||
-    /\bconversion\b/.test(t) ||
+    /\bconversions?\b/.test(t) ||
     /\bconverted\b/.test(t) ||
-    /\bcall\b.{0,40}\b(today|convert|occur|happen|fire|track|through|count|log|connect|came|come|go|went)\b/.test(t) ||
-    /\b(check|verify|did|was|any)\b.{0,25}\bcall(s)?\b/.test(t)
+    /\bcalls?\b.{0,40}\b(today|convert|occur|happen|fire|track|through|count|log|connect|regist|came|come|go|went)\b/.test(t) ||
+    /\b(check|verify|did|was|any|register|registered)\b.{0,40}\b(conversions?|calls?)\b/.test(t)
   );
 }
 
