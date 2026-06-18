@@ -766,15 +766,16 @@ Fast path: **`RINGBA_API_TOKEN`** (required), `RINGBA_ACCOUNT_ID` (optional — 
 
 > ⚠️ The two API tokens bypass MFA and (Ringba) never expire — treat as high-value secrets: repo-scoped (not org), no `pull_request_target`, rotate on a calendar.
 
-### Live findings from the API (validated 2026-06-17) — REAL BUGS to fix in Ringba
+### Live findings from the API (validated 2026-06-17, **corrected**)
 
-Running the fast path against today's calls surfaced that **every** "ClickFlare Phone Call Postback" pixel fires **HTTP 200** but with a broken payload:
+The phone-call conversion pipeline is **largely healthy** — connected calls DO register end-to-end (Ringba pixel 200 → ClickFlare conversion matched → Google Ads "Call" upload 200). An earlier reading of this was wrong; the corrected picture:
 
-- **`txid=` is EMPTY** on all calls — the `txid=[Call:InboundCallId]` mapping is NOT resolving. (This was the exact thing `/check` was built to confirm; it is currently failing.)
-- **`payout=` is EMPTY** — `[publisherPayoutAmount]` not resolving (separate from the by-design $0 revenue).
-- **`click_id=` is the Google `clickid` tag (a UUID), NOT the ClickFlare `cpid`** (type "ClickFlare ID", e.g. `6a04cfc67e76d10012a65767`). ClickFlare needs its own click id to attribute — so conversions likely aren't matching. Some calls send `click_id=` empty entirely.
+- ✅ **click_id is CORRECT.** The pixel sends `click_id=<the "clickid" connection tag>`, a UUID like `309b4d01-…` — and that **is** ClickFlare's actual `ClickID`; ClickFlare matches on it (verified: conversions exist under those click_ids). **`cpid` is NOT a click id** — it equals ClickFlare's `CampaignID` (e.g. `6a04cfc67e76d10012a65767`). So `click_id ≠ cpid` is EXPECTED, not a bug. Do not "fix" the pixel to send cpid.
+- ⚠️ **`txid` was empty on older/morning calls** (`[Call:InboundCallId]` not resolving) but appears **populated on afternoon calls** (e.g. txid `…V3QP301`/`…V3CSC01` carrying the Ringba callId) — looks like the txid mapping was fixed midday 6/17. Empty txid is a traceability gap, not a "didn't register."
+- ⚠️ **Duplicate calls leak a conversion.** A short re-dial (e.g. 2s, Ringba `isDuplicate=true`, `hasConverted=false`) still fires the pixel on connect, so ClickFlare + Google Ads record an extra conversion Ringba doesn't count → ClickFlare/GAds can show MORE conversions than Ringba.
+- `payout=` empty is fine (U65 targets pay $0 by design).
 
-→ Fix is in the **Ringba pixel config** (U65 campaign → ClickFlare Phone Call Postback pixel URL): the token references for `click_id`, `txid`, `payout` are wrong/unresolved. Verify against `[connectionTag:cpid]`, `[Call:InboundCallId]`, `[publisherPayoutAmount]`. The fired URL the API returns is the ground truth for what's actually being sent.
+The **separate** broken thing is the **lead/Qualified → Google Ads** path ("Too short./empty gclid") — see the ClickFlare→Google Ads section above. That is NOT the phone-call path.
 
 ### Notes / risks
 

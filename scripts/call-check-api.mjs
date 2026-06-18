@@ -219,7 +219,10 @@ async function evaluateCall(a) {
     // pixel fired with 200 — inspect what was actually sent
     const sent = a.pixel.sent;
     if (!sent.click_id) issues.push("click_id EMPTY");
-    else if (a.cpid && sent.click_id !== a.cpid) issues.push(`click_id sent is the Google clickid, not the ClickFlare cpid (${a.cpid})`);
+    // The click_id sent is ClickFlare's ClickID (a UUID); whether it's right is
+    // validated by the ClickFlare cross-check below — NOT by comparing it to cpid.
+    // (cpid is ClickFlare's CAMPAIGN id, not a click id — comparing them was a
+    // false alarm that wrongly flagged healthy conversions.)
     if (!sent.txid) issues.push("txid EMPTY");
 
     let cf = { state: "unavailable", reason: "skipped" };
