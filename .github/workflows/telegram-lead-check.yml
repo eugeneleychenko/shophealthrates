@@ -1,0 +1,81 @@
+name: Telegram lead check
+
+# TEST-FIRST scaffold. Manual trigger only for now — NOT yet wired to Telegram
+# via repository_dispatch. The first goal is to confirm whether a GitHub-hosted
+# runner can reach Boberdoo's admin API (getLeadDetails). The admin key (107) is
+# IP-whitelisted to 209.122.209.0/24; hosted runners use rotating Azure IPs, so
+# this run reveals whether the whitelist blocks CI.
+#
+# Run it:  gh workflow run "Telegram lead check" -f request="today"
+#   or:    gh workflow run "Telegram lead check" -f request="lead 17232825"
+#   or:    Actions tab → Telegram lead check → Run workflow.
+#
+# Requires repo secret BOBERDOO_ADMIN_KEY (the ID-107 admin key).
+on:
+  workflow_dispatch:
+    inputs:
+      request:
+        description: "Ask (e.g. 'today', 'yesterday', an email, a phone, or 'lead <id>'). Blank = today's summary."
+        required: false
+        default: "today"
+      chat_id:
+        description: "Telegram chat id to reply to (blank = just print to the run log)"
+        required: false
+      message_id:
+        description: "Telegram message id for a reaction (optional)"
+        required: false
+
+concurrency:
+  group: telegram-lead-check-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      CHAT_ID: ${{ github.event.inputs.chat_id }}
+      MESSAGE_ID: ${{ github.event.inputs.message_id }}
+      REQUEST: ${{ github.event.inputs.request }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Show this runner's public egress IP (vs whitelist 209.122.209.0/24)
+        run: |
+          echo "Runner public IP(s):"
+          curl -s https://api.ipify.org || echo "(ipify unreachable)"
+          echo
+
+      - name: Lead check (Boberdoo getLeadDetails)
+        id: leadcheck
+        continue-on-error: true
+        env:
+          BOBERDOO_ADMIN_KEY: ${{ secrets.BOBERDOO_ADMIN_KEY }}
+        run: node scripts/lead-check-api.mjs
+
+      - name: Report result
+        if: always()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: |
+          echo "=================== LEAD CHECK RESULT ==================="
+          echo "script outcome: ${{ steps.leadcheck.outcome }}"
+          if [ -f _agent_inbox/REPLY.txt ]; then
+            echo "----- REPLY -----"
+            cat _agent_inbox/REPLY.txt
+          else
+            echo "(no REPLY.txt was written)"
+          fi
+          echo "========================================================"
+
+          # Optional Telegram reply — only if a chat_id was provided (off by default).
+          if [ -n "$CHAT_ID" ] && [ -f _agent_inbox/REPLY.txt ]; then
+            curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+              -H "Content-Type: application/json" \
+              -d "$(jq -n --arg c "$CHAT_ID" --arg t "$(cat _agent_inbox/REPLY.txt)" '{chat_id:$c, text:$t}')" >/dev/null || true
+          fi
