@@ -73,7 +73,11 @@ jobs:
         env:
           RINGBA_API_TOKEN: ${{ secrets.RINGBA_API_TOKEN }}
           RINGBA_ACCOUNT_ID: ${{ secrets.RINGBA_ACCOUNT_ID }}
-          CLICKFLARE_API_KEY: ${{ secrets.CLICKFLARE_API_KEY }}
+          # ClickFlare cross-check via the internal API (no paid tier) — uses the
+          # same username/password the browser fallback uses; no MFA.
+          CLICKFLARE_USERNAME: ${{ secrets.CLICKFLARE_USERNAME }}
+          CLICKFLARE_PASSWORD: ${{ secrets.CLICKFLARE_PASSWORD }}
+          CLICKFLARE_ORG_ID: ${{ secrets.CLICKFLARE_ORG_ID }}
         run: node scripts/call-check-api.mjs
 
       # ── BROWSER FALLBACK: only runs if the fast path produced no verdict.

@@ -15,10 +15,11 @@
 //                        scheme keyword is literally "Token", not "Bearer").
 //   RINGBA_ACCOUNT_ID    (optional) the RA... account id; resolved via
 //                        GET /v2/ringbaaccounts if unset.
-//   CLICKFLARE_API_KEY   (OPTIONAL) key from ClickFlare > Settings > Security. Used
-//                        only for a destination-side cross-check. If absent or the
-//                        account isn't authorized for the Public API (HTTP 403), we
-//                        degrade gracefully and rely on Ringba's pixel-fire 200.
+//   CLICKFLARE_USERNAME / CLICKFLARE_PASSWORD  (OPTIONAL) for the destination-side
+//                        cross-check via ClickFlare's INTERNAL API (no paid tier) —
+//                        see scripts/clickflare-api.mjs. If absent we degrade
+//                        gracefully and rely on Ringba's pixel-fire 200.
+//   CLICKFLARE_ORG_ID    (optional, default 174149434)
 //
 // INPUT (env):
 //   REQUEST        teammate's free-text ask (optional). A run of 4+ digits is treated
@@ -34,10 +35,10 @@
 // Node 18+ (global fetch). No dependencies.
 
 import { mkdirSync, writeFileSync } from "node:fs";
+import { eventLogs } from "./clickflare-api.mjs";
 
 const BIZ_TZ = "America/New_York"; // business timezone for "today" + ClickFlare
 const RINGBA_BASE = "https://api.ringba.com/v2";
-const CF_BASE = "https://public-api.clickflare.io/api";
 
 const DEBUG = !!process.env.DEBUG;
 const dbg = (...a) => DEBUG && process.stderr.write(a.map(String).join(" ") + "\n");
@@ -45,7 +46,7 @@ const note = (...a) => process.stderr.write(a.map(String).join(" ") + "\n"); // 
 
 // ── env ──────────────────────────────────────────────────────────────────────
 const RINGBA_API_TOKEN = process.env.RINGBA_API_TOKEN;
-const CLICKFLARE_API_KEY = process.env.CLICKFLARE_API_KEY;
+const CLICKFLARE_ON = !!(process.env.CLICKFLARE_USERNAME && process.env.CLICKFLARE_PASSWORD);
 let RINGBA_ACCOUNT_ID = process.env.RINGBA_ACCOUNT_ID;
 const REQUEST = (process.env.REQUEST || "").trim();
 const LOOKBACK_DAYS = Math.max(0, parseInt(process.env.LOOKBACK_DAYS || "0", 10) || 0);
@@ -97,12 +98,6 @@ const ringba = (path, opts = {}) =>
     ...opts,
     headers: { Authorization: `Token ${RINGBA_API_TOKEN}`, "Content-Type": "application/json", ...(opts.headers || {}) },
   });
-const clickflare = (path, body) =>
-  http(`${CF_BASE}${path}`, {
-    method: "POST", body,
-    headers: { "api-key": CLICKFLARE_API_KEY, "Content-Type": "application/json" },
-  });
-
 // ── Ringba: resolve account, pull window's calls + per-call detail ───────────
 async function resolveAccountId() {
   if (RINGBA_ACCOUNT_ID) return RINGBA_ACCOUNT_ID;
@@ -186,41 +181,23 @@ function analyze(rec) {
   };
 }
 
-// ── ClickFlare cross-check (optional; degrades on 403/missing key) ───────────
+// ── ClickFlare cross-check via the INTERNAL API (scripts/clickflare-api.mjs).
+// Optional; degrades gracefully if creds are missing or the login/call fails.
 // Returns {state:'matched'|'none'|'unavailable', reason?, row?}.
 async function clickflareCheck(clickId) {
-  if (!CLICKFLARE_API_KEY) return { state: "unavailable", reason: "no CLICKFLARE_API_KEY" };
+  if (!CLICKFLARE_ON) return { state: "unavailable", reason: "no ClickFlare credentials" };
   if (!clickId) return { state: "unavailable", reason: "no click_id was sent to match on" };
-  const { ymd } = bizDateParts();
-  const start = LOOKBACK_DAYS ? bizDateParts(new Date(Date.now() - LOOKBACK_DAYS * 86400000)).ymd : ymd;
-  const body = {
-    startDate: `${start} 00:00:00`,
-    endDate: `${ymd} 23:59:59`,
-    timezone: BIZ_TZ,
-    metrics: ["EventType", "ClickID", "ConversionTransaction", "ConversionPayout", "ConversionDate", "PostbacksExecuted"],
-    metricsFilters: [
-      { name: "EventType", operator: "=", value: "conversion" },
-      { name: "ClickID", operator: "=", value: clickId },
-    ],
-    sortBy: "ConversionDate", orderType: "desc", page: 1, pageSize: 50,
-  };
   try {
-    const r = await clickflare(`/event-logs`, body);
-    const items = r.items || r.data || [];
+    const items = await eventLogs({ clickId, days: LOOKBACK_DAYS, eventType: "conversion" });
     if (DEBUG && items[0]) dbg("clickflare item keys:", Object.keys(items[0]).join(","));
     if (!items.length) return { state: "none" };
     const it = items[0];
     return {
       state: "matched",
-      row: {
-        clickId: it.ClickID, txid: it.ConversionTransaction,
-        payout: it.ConversionPayout, date: it.ConversionDate,
-        postbacks: it.PostbacksExecuted,
-      },
+      row: { clickId: it.ClickID, txid: it.ConversionTransaction, payout: it.ConversionPayout, date: it.ConversionDate },
     };
   } catch (e) {
-    if (e.status === 403 || e.status === 401) return { state: "unavailable", reason: `ClickFlare Public API not authorized (HTTP ${e.status})` };
-    return { state: "unavailable", reason: `ClickFlare error HTTP ${e.status || "?"}` };
+    return { state: "unavailable", reason: `ClickFlare internal API error (${e.status || e.message})` };
   }
 }
 
@@ -250,7 +227,7 @@ async function evaluateCall(a) {
 
     if (cf.state === "matched") {
       const txOk = cf.row.txid ? `txid ${cf.row.txid}` : "txid empty in ClickFlare";
-      head = `✅ landed in ClickFlare (${txOk}, postbacks ${cf.row.postbacks ?? "?"})`;
+      head = `✅ landed in ClickFlare (${txOk})`;
       landed = !issues.length;
     } else if (cf.state === "none") {
       head = "⚠️ pixel fired 200 but ClickFlare shows NO matching conversion";
@@ -320,7 +297,7 @@ async function main() {
     return;
   }
 
-  const cfNote = CLICKFLARE_API_KEY ? "" : "\n(ClickFlare API key not set — confirmed via Ringba's pixel-fire 200 only.)";
+  const cfNote = CLICKFLARE_ON ? "" : "\n(ClickFlare creds not set — confirmed via Ringba's pixel-fire 200 only.)";
   const header = anyLanded
     ? `✅ YES — call conversion landed (${scope}, ${BIZ_TZ}).`
     : `⚠️ NOT fully confirmed — pixel fired but payload/attribution looks off (${scope}, ${BIZ_TZ}).`;

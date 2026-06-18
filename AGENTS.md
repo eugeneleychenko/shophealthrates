@@ -434,6 +434,40 @@ To test the full flow:
 3. Call the tracked number during HOO (Mon-Fri 9:30am-6:30pm ET)
 4. Check ClickFlare Logs for a `phone_call` conversion with `click_id=test123`
 
+## ClickFlare → Google Ads forwarding — "Qualified" failing "Too short." (diagnosed 2026-06-17)
+
+### The alert
+ClickFlare "Integration Health Monitor" emailed: **"1 Integration Failure Detected — LeoSource - Qualified conversions failing to send to Google Ads / Unrecognized error from the ad platform."**
+
+### What it is
+ClickFlare forwards conversions back to Google Ads (for bid optimization) via **Integrations → Conversion API**. Three Google Ads integrations exist (ClickFlare account `174149434`, Google account "Josh Goins", Manager "Leo Source MCC", customer `8052531545`):
+
+| Integration | ClickFlare ID | Google conversion action | Status |
+|---|---|---|---|
+| LeoSource - Qualified | `6a0c88929f220b001270313a` | Qualified Lead — `…/conversionActions/7616727115` | ❌ fails **"Too short."** |
+| LeoSource - Call | `6a0c88591da37d00129e5412` | Call — `…/conversionActions/7616715306` | ✅ 200 |
+| LeoSource - Sale | `6a0c88308280fe00135ed64c` | Sale | (untested) |
+
+Where to look: app.clickflare.com → **Logs → Postback Status** (`…/activity?range=last_30_days&activeTab=postback-status`). Per row, **View payload** = exact Google Ads body; **View error details** = the error. (ClickFlare **Public API is 403/plan-gated**, so this is browser-only for now.)
+
+### Root cause (evidence-backed) — NOT a token/reconnect issue
+Google rejects every "Qualified" send with **`StringLengthError: "Too short."`** = a required string field is empty. The email's "reconnect/expired token" advice is a **red herring**:
+- The **same visit** (Visit `6a04cfc6…`, Click `6a04cefa…`) both calls and submits a lead. The **Call** upload succeeds (200) on the same account/token; only **Qualified** fails.
+- Working **Call payload** is **gclid-based**: `{gclid:"Cj0KCQjwi8nRBhD…", conversion_action:".../7616715306", conversion_value:0, consent:{adUserData:GRANTED}}` → 200. So OAuth/token/customer/gclid are healthy.
+- **Qualified** = ClickFlare **base conversion (Custom Conversion Index 0)**, fired by the quiz form (`quiz.html:1249` → `cf/cv?click_id=subId`) and/or Boberdoo — it **never touches Ringba**. Failing rows show Conversion Type EMPTY, Event EMPTY; the integration's **Event Data Configuration is EMPTY**.
+- ⇒ The empty field is almost certainly the **gclid**: the lead/base conversion arrives via `click_id=subId`, which isn't resolving to a gclid-bearing ClickFlare click → empty gclid uploaded → "Too short." (Phone calls carry the real gclid from the ad click, so they pass.)
+
+### It was NOT caused by the Ringba pixel edit
+Verified (3 independent agents + adjudicator, "effectively none"). The Ringba "ClickFlare Phone Call Postback" pixel writes only the **phone_call custom conversion (Index 2 → the Call integration, which works)** and shares no writable field/dedup key with the base-conversion Qualified upload. The Qualified integration was **created/last-updated "a month ago"** with an empty config and fails on **every** send (failures span Jun 12–17), so it predates the Ringba change; the Health-Monitor email is just a threshold alert firing now.
+
+### Where to fix (in order — do NOT reconnect Google Ads, connection is fine)
+1. Make the **lead/Qualified conversions carry a valid gclid** — the quiz→ClickFlare conversion must key off the real ClickFlare click (the one with the gclid), not a bare `subId` that loses it.
+2. OR switch the "Qualified Lead" Google Ads action to **Enhanced Conversions for Leads** (hashed email/phone — form leads often have no gclid), then map email/phone in "LeoSource - Qualified" → Event Data Configuration (currently empty); confirm the quiz/Boberdoo data carries email/phone.
+3. Use **"LeoSource - Call"** as the working reference; diff Call vs Qualified before saving anything.
+4. **Open item**: confirm in Google Ads (Goals → Conversions → "Qualified Lead") whether it's gclid-based or Enhanced-Conversions-for-Leads — that decides fix #1 vs #2.
+
+Same identifier-plumbing theme as the Ringba pixel bug (IDs dropping between hops), but an **independent** break.
+
 ## Claude Code on the Web (Remote Management)
 
 This project is configured for remote management via [claude.ai/code](https://claude.ai/code). No local machine required — works from phone or any browser.
@@ -631,7 +665,7 @@ Webhook 57 ("ClickFlare Sale Postback") is Active and correctly configured (`CRM
 | System | Have API? | Blocker |
 |--------|-----------|---------|
 | Boberdoo | ✅ Key 107 | ❌ IP-whitelisted to `209.122.209.0/24` — remove whitelist to use from CLI |
-| ClickFlare | ⚠️ Public API exists | Key generates at Settings → Security, but our account returns **HTTP 403 "PublicApi access forbidden"** — Public API is a plan/permission gate, not enabled for us yet. Key auths (not 401) but lacks the grant. |
+| ClickFlare | ✅ Internal API (in use) | The paid **Public API** (`public-api.clickflare.io`) returns **HTTP 403** for our plan. Workaround: the **internal app API** `api.clickflare.io` — reverse-engineered with browserbase `browser-to-api` (capture harness in `.b2a/`, spec + client in `.b2a/run/api-spec/` (git-ignored, regenerable)). Auth = `POST user-manager-v2.clickflare.io/api/login` (username/password, no MFA) → JWT sent in a header literally named `jwt` + `x-organization-id`. Wrapped in **`scripts/clickflare-api.mjs`** (`eventLogs`, `postbackStatus`). |
 | Ringba | ✅ Long-lived API token | Generated at `app.ringba.com` → Security → API Access Tokens (MFA only at creation, never expires). Header `Authorization: Token <t>`. **In use by `/check`'s fast path.** |
 
 ---
@@ -723,11 +757,12 @@ Each fallback step is gated with `if: hashFiles('_agent_inbox/REPLY.txt') == ''`
 | `api/telegram.js` | `/^\/(check\|call\|conversion)\b/` + `isCallConversionQuestion()` → `handleCallCheck()` → dispatch `telegram-call-check`. Lead-FORM questions still route to `/diagnose` (Sheety); a `call to action`/`cta` mention is excluded so copy-change requests don't mis-route. |
 | `scripts/call-check-api.mjs` | **Fast path.** Node 18+, no deps. Reads `RINGBA_API_TOKEN` (+ optional `RINGBA_ACCOUNT_ID`, `CLICKFLARE_API_KEY`). Resolves "today" in America/New_York → UTC for Ringba; ET string + `timezone` for ClickFlare. On success writes `_agent_inbox/REPLY.txt` + exit 0; on missing token / network / shape error writes nothing + exits non-zero → triggers fallback. `DEBUG=1` dumps shapes; `LOOKBACK_DAYS=N` widens the window for testing. |
 | `.github/workflows/telegram-call-check.yml` | Cloud check. `permissions: contents: read`. Step 1 fast API check (`continue-on-error`), gated browser fallback, reply step unchanged. |
+| `scripts/clickflare-api.mjs` | ClickFlare **internal-API** client (no paid tier): login → `jwt` header → `eventLogs`/`postbackStatus`. The fast path imports `eventLogs` for the destination-side cross-check. Also a CLI: `node scripts/clickflare-api.mjs conversions\|postbacks [YYYY-MM-DD]`. |
 | `scripts/ringba-totp.js` | TOTP generator for the **fallback** 2FA only. `.vercelignore`d. |
 
 ### Secrets (GitHub Actions)
 
-Fast path: **`RINGBA_API_TOKEN`** (required), `RINGBA_ACCOUNT_ID` (optional — `RA7a01677bfe7a4ed59ad998a84bfcef13`, else auto-resolved), `CLICKFLARE_API_KEY` (optional cross-check). Fallback (kept until the fast path is proven over a week, then deletable): `RINGBA_USERNAME`, `RINGBA_PASSWORD`, `CLICKFLARE_USERNAME`, `CLICKFLARE_PASSWORD`, `RINGBA_TOTP_SECRET` (or pulled from Vercel via `VERCEL_TOKEN`). `CLAUDE_CODE_OAUTH_TOKEN` + `TELEGRAM_BOT_TOKEN` already exist.
+Fast path: **`RINGBA_API_TOKEN`** (required), `RINGBA_ACCOUNT_ID` (optional — `RA7a01677bfe7a4ed59ad998a84bfcef13`, else auto-resolved), **`CLICKFLARE_USERNAME` / `CLICKFLARE_PASSWORD`** (optional cross-check via the internal API — no paid tier, no MFA), `CLICKFLARE_ORG_ID` (optional, default `174149434`). Fallback (kept until the fast path is proven over a week, then deletable): `RINGBA_USERNAME`, `RINGBA_PASSWORD`, `RINGBA_TOTP_SECRET` (or pulled from Vercel via `VERCEL_TOKEN`). `CLAUDE_CODE_OAUTH_TOKEN` + `TELEGRAM_BOT_TOKEN` already exist. (`CLICKFLARE_API_KEY` for the Public API is unused — that tier 403s.)
 
 > ⚠️ The two API tokens bypass MFA and (Ringba) never expire — treat as high-value secrets: repo-scoped (not org), no `pull_request_target`, rotate on a calendar.
 
@@ -744,8 +779,15 @@ Running the fast path against today's calls surfaced that **every** "ClickFlare 
 ### Notes / risks
 
 - The fast path is read-only REST — no credentials printed, no browser, ~1s vs minutes; eliminates the datacenter-IP-login-block risk for the normal case.
-- ClickFlare's Public API is **plan-gated** (HTTP 403 today). To get destination-side conversion confirmation, enable Public API access on the ClickFlare plan/role, then `CLICKFLARE_API_KEY` cross-check activates automatically. Until then, Ringba's pixel-fire 200 + the parsed payload is the proof.
+- ClickFlare cross-check now uses the **internal API** (`scripts/clickflare-api.mjs`) since the Public API tier 403s — so `/check` confirms the conversion landed in ClickFlare (matched `click_id`, `txid`) with no paid tier. The internal API is undocumented and can change; if it starts 4xx-ing, re-capture (`.b2a/`) and re-check field names. Degrades to Ringba's pixel-fire 200 if creds/login fail.
 - The script uses defensive, case-insensitive field lookup and exits non-zero on any unexpected shape, so vendor schema drift falls back to the browser rather than emitting a wrong verdict.
+
+### How the ClickFlare internal API was discovered (browser-to-api, 2026-06-17)
+
+Since the Public API tier is out, we reverse-engineered the dashboard's own API with the browserbase **`browser-to-api`** skill:
+1. `.b2a/cdp-capture.mjs` — a zero-dep CDP tap attaches to the agent-browser Chrome and records `requests/responses/bodies` in the skill's input format while a logged-in session navigates Event Logs + Postback Status.
+2. `.b2a/skill/scripts/discover.mjs --run .b2a/run` → OpenAPI spec + `client.mjs` + report (saved under `.b2a/run/api-spec/` (git-ignored, regenerable)).
+3. Key endpoints: `POST api.clickflare.io/api/event-logs` (conversions), `POST .../api/postback-status/logs` (Conversion-API send results incl. Google Ads errors), `GET .../api/integration`. Re-run the capture to refresh if the API drifts.
 
 ---
 

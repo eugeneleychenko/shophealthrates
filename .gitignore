@@ -4,3 +4,6 @@ _agent_inbox/
 .env
 .DS_Store
 **/.DS_Store
+
+# browser-to-api capture working dir (local only)
+.b2a/
