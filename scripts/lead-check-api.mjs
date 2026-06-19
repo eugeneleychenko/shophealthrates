@@ -46,7 +46,7 @@ if (!KEY) fail('BOBERDOO_ADMIN_KEY is not set.', 2);
 let FETCH = globalThis.fetch;
 let DISPATCHER = null;
 async function setupProxy() {
-  const proxy = process.env.FIXIE_URL || process.env.HTTPS_PROXY || process.env.LEAD_API_PROXY || '';
+  const proxy = (process.env.FIXIE_URL || process.env.HTTPS_PROXY || process.env.LEAD_API_PROXY || '').replace(/\\n$/, '').trim();
   if (!proxy) { console.log('PROXY: none (direct egress).'); return; }
   try {
     const u = await import('undici');

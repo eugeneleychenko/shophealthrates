@@ -21,6 +21,8 @@ module.exports = async (req, res) => {
   }
 
   const clickId = data.click_id || "";
+  const gclid = data.gclid || "";        // Google Ads click id (links the row to Google)
+  const email = data.email || "";        // identity / join key
   const phone = data.phone || "";
   const zip = data.zip || "";
   const firstName = data.first_name || "";
@@ -37,11 +39,15 @@ module.exports = async (req, res) => {
           timestamp: timestamp,
           event: "lead_submitted",
           clickId: clickId,
+          gclid: gclid,
+          email: email,
           payout: "",
           txid: "",
           ct: "",
           cfStatus: "",
           cfResponse: "",
+          boberdooStatus: "",
+          trustedForm: "",
           rawQuery: "phone=" + phone.slice(-4) + "&zip=" + zip + "&name=" + firstName
         }
       })

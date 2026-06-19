@@ -1276,6 +1276,8 @@ function submitLead(e) {
         try {
             navigator.sendBeacon('/api/log-lead', JSON.stringify({
                 click_id: subId,
+                gclid: ssGet('utm_gclid') || '',
+                email: emailVal,
                 phone: phoneVal,
                 zip: zip,
                 first_name: firstVal,
