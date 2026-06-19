@@ -7,3 +7,6 @@ _agent_inbox/
 
 # browser-to-api capture working dir (local only)
 .b2a/
+
+# node deps (local only)
+node_modules/
