@@ -63,6 +63,16 @@ module.exports = async (req, res) => {
     return res.status(200).send("mfa handled");
   }
 
+  // Handle /reconcile (or /gap) — explain a Boberdoo-vs-ClickFlare lead-count gap
+  // with a categorized verdict (cloud workflow: Boberdoo + ClickFlare + Sheety diff).
+  if (/^\/(reconcile|gap)\b/i.test(text)) {
+    const botUserName = process.env.TELEGRAM_BOT_USERNAME || "";
+    const arg = text.replace(/^\/(reconcile|gap)(@\w+)?/i, "").split("@" + botUserName).join("").trim();
+    const from = (msg.from && (msg.from.username || msg.from.first_name)) || "client";
+    await handleReconcile(chatId, msg.message_id, arg, from);
+    return res.status(200).send("reconcile handled");
+  }
+
   // Handle /check (or /call, /conversion) — verify a phone-call conversion
   // end-to-end by logging into Ringba + ClickFlare in the cloud. This dispatches
   // the telegram-call-check workflow (NOT the code-change one).
@@ -82,6 +92,16 @@ module.exports = async (req, res) => {
   else if (/^\/(ask|q)\b/i.test(text)) mode = "ask";
   else if (botUser && text.includes("@" + botUser)) mode = "auto";
   if (!mode) return res.status(200).send("not addressed");
+
+  // Fast-path: reconciliation questions ("28 in boberdoo but 25 in clickflare,
+  // why?"). Checked BEFORE the Boberdoo/ClickFlare single-system paths because the
+  // gap question mentions both systems and needs the 3-way diff, not a row dump.
+  if (mode === "auto" && isReconcileQuestion(text)) {
+    const q = text.split("@" + botUser).join("").trim();
+    const from = (msg.from && (msg.from.username || msg.from.first_name)) || "client";
+    await handleReconcile(chatId, msg.message_id, q, from);
+    return res.status(200).send("reconcile handled");
+  }
 
   // Fast-path: Boberdoo lead-DATA questions (TrustedForm cert, TCPA, lead status)
   // need the getLeadDetails API (via the Fixie static IP), NOT the Sheety log —
@@ -281,6 +301,52 @@ function isCallConversionQuestion(text) {
     /\bcalls?\b.{0,40}\b(today|convert|occur|happen|fire|track|through|count|log|connect|regist|came|come|go|went)\b/.test(t) ||
     /\b(check|verify|did|was|any|register|registered)\b.{0,40}\b(conversions?|calls?)\b/.test(t)
   );
+}
+
+// Detect a reconciliation question — a cross-system COUNT discrepancy between
+// Boberdoo and ClickFlare ("28 in boberdoo but 25 in clickflare", "why the gap",
+// "numbers don't match"). Routed to the 3-way diff, not the single-system checks.
+function isReconcileQuestion(text) {
+  const t = text.toLowerCase();
+  if (/\breconcile|reconciliation\b/.test(t)) return true;
+  const bothSystems = /\bboberdoo\b/.test(t) && /\bclickflare\b/.test(t);
+  const gapWord = /\bgap\b|discrepan|mismatch|don'?t match|doesn'?t match|not match|differ|\bvs\.?\b|more than|fewer|less than|missing/.test(t);
+  // Both systems named together is almost always a "why don't these agree" question;
+  // a gap word alongside either system also qualifies.
+  return bothSystems || (gapWord && (/\bboberdoo\b/.test(t) || /\bclickflare\b/.test(t)));
+}
+
+// Dispatch the telegram-reconcile workflow (Boberdoo + ClickFlare + Sheety diff),
+// which posts a categorized gap verdict back to the chat itself.
+async function handleReconcile(chatId, messageId, request, from) {
+  let dispatch;
+  try {
+    dispatch = await fetch(
+      `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/dispatches`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+          Accept: "application/vnd.github+json",
+          "X-GitHub-Api-Version": "2022-11-28",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          event_type: "telegram-reconcile",
+          client_payload: { request: request || "", chat_id: chatId, message_id: messageId, from: from || "client" },
+        }),
+      }
+    );
+  } catch (err) {
+    await tgSend(chatId, "⚠️ Couldn't start the reconciliation (" + err.message + "). Eugene will take a look.");
+    return;
+  }
+  if (!dispatch.ok) {
+    await tgSend(chatId, `⚠️ Couldn't start the reconciliation (GitHub ${dispatch.status}). Eugene will take a look.`);
+    return;
+  }
+  await tgSend(chatId, "🔎 Reconciling Boberdoo ↔ ClickFlare (today)… one moment.");
+  if (messageId) await tgReact(chatId, messageId, "👀");
 }
 
 // Dispatch the telegram-call-check workflow, which logs into Ringba + ClickFlare

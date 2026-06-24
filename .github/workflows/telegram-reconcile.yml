@@ -1,0 +1,111 @@
+name: Telegram reconcile
+
+# Answers "why N leads in Boberdoo but M in ClickFlare?" with a categorized
+# verdict, NOT a row dump. Fired by the Vercel webhook (api/telegram.js) on a
+# reconciliation question, or run manually.
+#
+# Runs scripts/lead-reconcile-report.mjs, which diffs three sources:
+#   • Boberdoo getLeadDetails (live count) — via Fixie static IP (IP-gated key)
+#   • ClickFlare eventLogs / postback-status — via username/password (no MFA)
+#   • Sheety log — every submit + its click_id + reconciled boberdooStatus
+# and buckets the gap into cpid-fallback / no-click_id / genuine-miss, plus
+# surfaces the gclid "Too short" → Google Ads outbound failures.
+#
+# Run it:  gh workflow run "Telegram reconcile" -f request="boberdoo vs clickflare today"
+#
+# Requires secrets: BOBERDOO_ADMIN_KEY, CLICKFLARE_USERNAME, CLICKFLARE_PASSWORD,
+# SHEETY_URL, TELEGRAM_BOT_TOKEN, and FIXIE_URL (secret or pulled from Vercel env).
+on:
+  repository_dispatch:
+    types: [telegram-reconcile]
+  workflow_dispatch:
+    inputs:
+      request:
+        description: "Free text (e.g. 'boberdoo vs clickflare gap today')."
+        required: false
+        default: "reconcile today"
+      chat_id:
+        description: "Telegram chat id to reply to (blank = just print to the run log)"
+        required: false
+      message_id:
+        description: "Telegram message id for a reaction (optional)"
+        required: false
+
+concurrency:
+  group: telegram-reconcile-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    env:
+      CHAT_ID: ${{ github.event.client_payload.chat_id || github.event.inputs.chat_id }}
+      MESSAGE_ID: ${{ github.event.client_payload.message_id || github.event.inputs.message_id }}
+      REQUEST: ${{ github.event.client_payload.request || github.event.inputs.request }}
+      VERCEL_ORG_ID: team_JRdKsTQV9jopaKxc8wlsdvGz
+      VERCEL_PROJECT_ID: prj_LIvg3Gu0WLw6fhgBAivjIojFR4y9
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install undici (proxy dispatcher for native fetch)
+        run: npm i undici
+
+      # FIXIE_URL: prefer a repo secret; otherwise pull from the Vercel project env.
+      - name: Resolve FIXIE_URL
+        env:
+          GH_FIXIE_URL: ${{ secrets.FIXIE_URL }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          url="$GH_FIXIE_URL"
+          if [ -z "$url" ] && [ -n "$VERCEL_TOKEN" ]; then
+            npm i -g vercel >/dev/null 2>&1 || true
+            vercel env pull /tmp/v.env --yes --environment=production --token "$VERCEL_TOKEN" >/dev/null 2>&1 || true
+            if [ -f /tmp/v.env ]; then
+              url=$(grep -E '^FIXIE_URL=' /tmp/v.env | head -1 | cut -d= -f2- | sed 's/^"//; s/"$//')
+              rm -f /tmp/v.env
+            fi
+          fi
+          if [ -n "$url" ]; then
+            echo "::add-mask::$url"
+            echo "FIXIE_URL=$url" >> "$GITHUB_ENV"
+            echo "FIXIE_URL resolved (length ${#url})."
+          else
+            echo "::warning::FIXIE_URL not resolved — Boberdoo count will show unavailable."
+          fi
+
+      - name: Reconcile (Boberdoo + ClickFlare + Sheety diff)
+        id: reconcile
+        continue-on-error: true
+        env:
+          BOBERDOO_ADMIN_KEY: ${{ secrets.BOBERDOO_ADMIN_KEY }}
+          FIXIE_URL: ${{ env.FIXIE_URL }}
+          CLICKFLARE_USERNAME: ${{ secrets.CLICKFLARE_USERNAME }}
+          CLICKFLARE_PASSWORD: ${{ secrets.CLICKFLARE_PASSWORD }}
+          SHEETY_URL: ${{ secrets.SHEETY_URL }}
+        run: node scripts/lead-reconcile-report.mjs
+
+      - name: Report result
+        if: always()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: |
+          echo "=================== RECONCILE RESULT ==================="
+          echo "script outcome: ${{ steps.reconcile.outcome }}"
+          if [ -f _agent_inbox/REPLY.txt ]; then
+            echo "----- REPLY -----"; cat _agent_inbox/REPLY.txt
+          else
+            echo "(no REPLY.txt was written)"
+          fi
+          echo "======================================================="
+
+          if [ -n "$CHAT_ID" ] && [ -f _agent_inbox/REPLY.txt ]; then
+            curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+              -H "Content-Type: application/json" \
+              -d "$(jq -n --arg c "$CHAT_ID" --arg t "$(cat _agent_inbox/REPLY.txt)" '{chat_id:$c, text:$t}')" >/dev/null || true
+          fi
