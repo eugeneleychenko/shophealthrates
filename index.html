@@ -634,5 +634,44 @@ g3cm('send', 'init');
 -->
 
 <!-- ======================== END TRACKING CODES ======================== -->
+
+<!-- Carry ad-click params (gclid/campaignid/keyword/etc.) forward into quiz.html.
+     The zip form (method=get) and the CTA links otherwise navigate to a bare
+     quiz.html, so the ClickFlare tag re-fires on the quiz with no ad params and the
+     lead conversion loses keyword/campaign/gclid. We read the original landing URL
+     captured in sessionStorage and (a) inject hidden inputs into the quiz form and
+     (b) append the params to every quiz.html link. Does NOT touch tracking blocks. -->
+<script>
+(function () {
+    try {
+        var landing = sessionStorage.getItem('landing_url');
+        var src = new URLSearchParams(landing ? new URL(landing).search : window.location.search);
+        var KEEP = ['gclid','wbraid','gbraid','cpid','campaignid','adgroupid','creative','keyword',
+                    'matchtype','network','placement','targetid','loc_physical_ms','loc_interest_ms',
+                    'gad_source','gad_campaignid','utm_source','utm_medium','utm_campaign','utm_term','utm_content'];
+        var carry = new URLSearchParams();
+        KEEP.forEach(function (k) { var v = src.get(k); if (v) carry.set(k, v); });
+        if (carry.toString() === '') return; // nothing to carry (organic/direct)
+        // (a) zip form (GET): hidden inputs become query params on submit
+        document.querySelectorAll('form[action^="quiz.html"]').forEach(function (f) {
+            carry.forEach(function (v, k) {
+                if (f.querySelector('input[name="' + k + '"]')) return;
+                var inp = document.createElement('input');
+                inp.type = 'hidden'; inp.name = k; inp.value = v;
+                f.appendChild(inp);
+            });
+        });
+        // (b) CTA links to quiz.html
+        document.querySelectorAll('a[href^="quiz.html"]').forEach(function (a) {
+            var href = a.getAttribute('href') || 'quiz.html';
+            var qi = href.indexOf('?');
+            var base = qi > -1 ? href.slice(0, qi) : href;
+            var merged = new URLSearchParams(qi > -1 ? href.slice(qi + 1) : '');
+            carry.forEach(function (v, k) { if (!merged.has(k)) merged.set(k, v); });
+            a.setAttribute('href', base + '?' + merged.toString());
+        });
+    } catch (_) {}
+})();
+</script>
 </body>
 </html>
