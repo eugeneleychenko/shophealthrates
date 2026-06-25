@@ -1222,6 +1222,17 @@ function submitLead(e) {
         var tfCertField = document.querySelector('input[name="xxTrustedFormCertUrl"]');
         var tfCertUrl = tfCertField ? tfCertField.value : '';
 
+        // Google Ads attribution passthrough (Campaign ID / Ad ID / Keyword).
+        // Captured from the ad-click URL into sessionStorage as utm_<param> by the
+        // capture block in <head>. Param names follow the ClickFlare offer-URL template
+        // (campaignid / creative=ad id / keyword); alternates are checked for robustness.
+        // These will be empty until Google Ads' Final-URL-Suffix actually appends the
+        // {campaignid}/{creative}/{keyword} ValueTrack tokens (same root cause as the
+        // empty campaign/keyword columns in ClickFlare).
+        var campaignId = ssGet('utm_campaignid') || ssGet('utm_campaign_id') || ssGet('utm_gad_campaignid') || '';
+        var adId       = ssGet('utm_creative')   || ssGet('utm_adid')        || ssGet('utm_ad_id')         || '';
+        var keyword    = ssGet('utm_keyword')    || ssGet('utm_term')        || ssGet('utm_utm_term')      || '';
+
         var payload = {
             Request: {
                 Format: "JSON",
@@ -1243,7 +1254,13 @@ function submitLead(e) {
                 Gender: gender,
                 Household_Size: householdSize,
                 Estimated_Household_Income: incomeVal,
-                Trusted_Form_URL: tfCertUrl
+                Trusted_Form_URL: tfCertUrl,
+                // Attribution passthrough — CONFIRM these 3 keys match the custom field
+                // names Boberdoo creates (rename here once Boberdoo confirms). Unknown
+                // fields are ignored by pingPostLead, so sending them early is a safe no-op.
+                Campaign_ID: campaignId,
+                Ad_ID: adId,
+                Keyword: keyword
             }
         };
 
@@ -1266,8 +1283,13 @@ function submitLead(e) {
             console.error("Lead submission error:", err);
         });
 
-        // Fire ClickFlare lead conversion client-side (full click_id, bypasses Boberdoo truncation)
-        if (subId) {
+        // Fire ClickFlare lead conversion client-side (full click_id, bypasses Boberdoo truncation).
+        // Suppress the lowest income bracket ($0-40,000) per partner request: low/$0-income leads
+        // must NOT report as ClickFlare conversions, so Google Ads stops optimizing toward them.
+        // NOTE: this closes only the CLIENT-SIDE path. The Boberdoo webhooks (53/55/57) still
+        // postback on match/sold regardless of income — add an Estimated_Household_Income filter
+        // there (Boberdoo Admin) to fully suppress, otherwise the server-side conversion still fires.
+        if (subId && incomeVal !== '$0-40,000') {
             var img = new Image();
             img.src = 'https://leosourceclick.com/cf/cv?click_id=' + encodeURIComponent(subId);
         }
