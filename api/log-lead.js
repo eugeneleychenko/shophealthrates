@@ -22,6 +22,7 @@ module.exports = async (req, res) => {
 
   const clickId = data.click_id || "";
   const gclid = data.gclid || "";        // Google Ads click id (links the row to Google)
+  const income = data.income || "";      // income bracket (Boberdoo read API can't return it)
   const email = data.email || "";        // identity / join key
   const phone = data.phone || "";
   const zip = data.zip || "";
@@ -40,6 +41,7 @@ module.exports = async (req, res) => {
           event: "lead_submitted",
           clickId: clickId,
           gclid: gclid,
+          income: income,
           email: email,
           payout: "",
           txid: "",

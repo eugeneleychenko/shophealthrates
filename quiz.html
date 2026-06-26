@@ -1218,6 +1218,7 @@ function submitLead(e) {
         // Falls back to cpid from sessionStorage if cookie not available
         var cfClickId = (document.cookie.match(/(^| )cf_click_id=([^;]+)/) || [])[2] || '';
         var subId = cfClickId || ssGet('utm_cpid') || '';
+        var hasRealClickId = !!cfClickId; // cpid fallback is a CampaignID, NOT a real click id
 
         var tfCertField = document.querySelector('input[name="xxTrustedFormCertUrl"]');
         var tfCertUrl = tfCertField ? tfCertField.value : '';
@@ -1289,7 +1290,9 @@ function submitLead(e) {
         // NOTE: this closes only the CLIENT-SIDE path. The Boberdoo webhooks (53/55/57) still
         // postback on match/sold regardless of income — add an Estimated_Household_Income filter
         // there (Boberdoo Admin) to fully suppress, otherwise the server-side conversion still fires.
-        if (subId && incomeVal !== '$0-40,000') {
+        // Only fire when we have a REAL cf_click_id cookie — never the cpid fallback,
+        // which would upload an empty gclid and fail Google Ads with "Too short."
+        if (hasRealClickId && incomeVal !== '$0-40,000') {
             var img = new Image();
             img.src = 'https://leosourceclick.com/cf/cv?click_id=' + encodeURIComponent(subId);
         }
@@ -1299,6 +1302,7 @@ function submitLead(e) {
             navigator.sendBeacon('/api/log-lead', JSON.stringify({
                 click_id: subId,
                 gclid: ssGet('utm_gclid') || '',
+                income: incomeVal,
                 email: emailVal,
                 phone: phoneVal,
                 zip: zip,

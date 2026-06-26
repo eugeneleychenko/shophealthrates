@@ -143,6 +143,11 @@ async function sheetyToday() {
   const missing = withClick.filter((r) => !cfLeadIds.has(r.clickId));
   const cpidFallback = missing.filter((r) => r.clickId === CPID);
   const genuineMiss = missing.filter((r) => r.clickId !== CPID);
+  // Authoritative "our-source in Boberdoo" count from back-filled reconciliation
+  // status — the live id-scan undercounts a high-volume shared lead type (type 33).
+  const inBoberdooReconciled = sheet.filter(
+    (r) => /^(matched|unmatched)$/i.test((r.boberdooStatus || '').trim())
+  ).length;
 
   // ── Build the verdict ──
   const L = [];
@@ -150,7 +155,8 @@ async function sheetyToday() {
   L.push('—');
   const bobCount = bobErr ? '⚠️ unavailable' : String(bob.today.length);
   L.push(`Submitted (Sheety): ${sheetErr ? '⚠️' : sheet.length}`);
-  L.push(`In Boberdoo (live): ${bobCount}`);
+  L.push(`In Boberdoo (reconciled): ${sheetErr ? '⚠️' : inBoberdooReconciled}`);
+  L.push(`In Boberdoo (live scan): ${bobCount}`);
   L.push(`ClickFlare lead conv.: ${cfErr ? '⚠️' : cfLeadIds.size + ' unique'}${!cfErr && cfLeadEvents > cfLeadIds.size ? ` (${cfLeadEvents} events, ${cfLeadEvents - cfLeadIds.size} dup re-fires)` : ''}`);
   if (!cfErr) L.push(`ClickFlare phone-call conv.: ${cfPhoneIds.size}`);
   L.push('—');
@@ -164,6 +170,17 @@ async function sheetyToday() {
       genuineMiss.slice(0, 5).forEach((r) => L.push(`      ${r.clickId}  ${r.boberdooStatus || '(pending)'}`));
     }
     if (!missing.length && !noClick.length) L.push('  • none — every submit is attributed ✅');
+  }
+
+  // Income breakdown — proves whether the $0-40,000 suppression is actually working.
+  if (!sheetErr) {
+    const zero = sheet.filter((r) => r.income === '$0-40,000');
+    const zeroConverted = zero.filter((r) => r.clickId && cfLeadIds.has(r.clickId));
+    L.push('—');
+    L.push(`Income mix: ${zero.length}/${sheet.length} submits are $0-40,000 (suppressed bracket)`);
+    if (!cfErr && zeroConverted.length) {
+      L.push(`  ⚠️ ${zeroConverted.length} of those STILL converted in ClickFlare (server-webhook leak — needs Boberdoo income filter)`);
+    }
   }
 
   // Higher-impact issues worth flagging regardless of the lead-count gap.
