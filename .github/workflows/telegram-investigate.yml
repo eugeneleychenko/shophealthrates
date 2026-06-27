@@ -1,0 +1,213 @@
+name: Telegram investigate
+
+# Free-form data investigation. Fired by api/telegram.js for @mention QUESTIONS that
+# must look at the LIVE systems (Boberdoo / ClickFlare / Sheety / Ringba) and reason
+# across them — NOT a canned single-system report. READ-ONLY: the agent can run the
+# read scripts + node CLIs, but CANNOT edit code, commit, push, or deploy.
+#
+# mode=lookup → run scripts/lookup.mjs only (deterministic /lookup command, instant).
+# mode=llm    → skip the lookup step; claude-code-action investigates with the full
+#               tool catalog (uses lookup.mjs as a tool). This is the default for
+#               @mention questions ("investigate by default").
+#
+# Run it (log-only, no Telegram post — leave chat_id blank):
+#   gh workflow run "Telegram investigate" -f request="do you see these sales? <id> <id>"
+#
+# Requires secrets: BOBERDOO_ADMIN_KEY, FIXIE_URL (or VERCEL_TOKEN), CLICKFLARE_USERNAME,
+# CLICKFLARE_PASSWORD, SHEETY_URL, RINGBA_API_TOKEN, CLAUDE_CODE_OAUTH_TOKEN, TELEGRAM_BOT_TOKEN.
+on:
+  repository_dispatch:
+    types: [telegram-investigate]
+  workflow_dispatch:
+    inputs:
+      request:
+        description: "Question / ids to investigate"
+        required: true
+      mode:
+        description: "llm (default, LLM investigates) | lookup (deterministic id resolver)"
+        required: false
+        default: "llm"
+      chat_id:
+        description: "Telegram chat id to reply to (blank = just print to the run log)"
+        required: false
+      message_id:
+        description: "Telegram message id for reactions (optional)"
+        required: false
+
+# Allow several investigations in parallel; they don't touch shared state.
+concurrency:
+  group: telegram-investigate-${{ github.event.client_payload.message_id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  investigate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read       # NEVER write — this agent cannot commit or deploy
+      id-token: write      # claude-code-action needs OIDC
+    env:
+      CHAT_ID: ${{ github.event.client_payload.chat_id || github.event.inputs.chat_id }}
+      MESSAGE_ID: ${{ github.event.client_payload.message_id || github.event.inputs.message_id || '' }}
+      REQUEST: ${{ github.event.client_payload.request || github.event.inputs.request }}
+      FROM: ${{ github.event.client_payload.from || 'manual' }}
+      MODE: ${{ github.event.client_payload.mode || github.event.inputs.mode || 'llm' }}
+      # Project identifiers (not secrets) — used to pull FIXIE_URL from Vercel env.
+      VERCEL_ORG_ID: team_JRdKsTQV9jopaKxc8wlsdvGz
+      VERCEL_PROJECT_ID: prj_LIvg3Gu0WLw6fhgBAivjIojFR4y9
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install undici (proxy dispatcher for native fetch)
+        run: npm i undici            # needed by lead-check / reconcile (Boberdoo via Fixie)
+
+      - name: Acknowledge in Telegram
+        if: env.CHAT_ID != '' && env.MESSAGE_ID != ''
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setMessageReaction" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n --arg c "$CHAT_ID" --arg m "$MESSAGE_ID" \
+              '{chat_id:$c, message_id:($m|tonumber), reaction:[{type:"emoji",emoji:"👀"}]}')" >/dev/null || true
+
+      # FIXIE_URL — repo secret, else pulled from Vercel env. VERBATIM from
+      # telegram-reconcile.yml / telegram-lead-check.yml.
+      - name: Resolve FIXIE_URL
+        env:
+          GH_FIXIE_URL: ${{ secrets.FIXIE_URL }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          url="$GH_FIXIE_URL"
+          if [ -z "$url" ] && [ -n "$VERCEL_TOKEN" ]; then
+            npm i -g vercel >/dev/null 2>&1 || true
+            vercel env pull /tmp/v.env --yes --environment=production --token "$VERCEL_TOKEN" >/dev/null 2>&1 || true
+            if [ -f /tmp/v.env ]; then
+              url=$(grep -E '^FIXIE_URL=' /tmp/v.env | head -1 | cut -d= -f2- | sed 's/^"//; s/"$//')
+              rm -f /tmp/v.env
+            fi
+          fi
+          if [ -n "$url" ]; then
+            echo "::add-mask::$url"; echo "FIXIE_URL=$url" >> "$GITHUB_ENV"
+            echo "FIXIE_URL resolved (length ${#url})."
+          else
+            echo "::warning::FIXIE_URL not resolved — live Boberdoo lookups unavailable."
+          fi
+
+      # ── mode=lookup: deterministic id resolver (no LLM). Writes REPLY.txt if it
+      #    finds an id/email; otherwise writes nothing → the LLM step runs.
+      - name: Deterministic lookup (ClickFlare + Sheety)
+        if: env.MODE == 'lookup'
+        id: lookup
+        continue-on-error: true
+        env:
+          SHEETY_URL: ${{ secrets.SHEETY_URL }}
+          CLICKFLARE_USERNAME: ${{ secrets.CLICKFLARE_USERNAME }}
+          CLICKFLARE_PASSWORD: ${{ secrets.CLICKFLARE_PASSWORD }}
+          CLICKFLARE_ORG_ID: ${{ secrets.CLICKFLARE_ORG_ID }}
+        run: node scripts/lookup.mjs      # reads REQUEST from job env
+
+      # ── LLM investigation — runs unless the deterministic lookup already answered.
+      - name: Investigate with Claude
+        if: hashFiles('_agent_inbox/REPLY.txt') == ''
+        uses: anthropics/claude-code-action@v1
+        env:
+          BOBERDOO_ADMIN_KEY: ${{ secrets.BOBERDOO_ADMIN_KEY }}
+          FIXIE_URL: ${{ env.FIXIE_URL }}
+          CLICKFLARE_USERNAME: ${{ secrets.CLICKFLARE_USERNAME }}
+          CLICKFLARE_PASSWORD: ${{ secrets.CLICKFLARE_PASSWORD }}
+          CLICKFLARE_ORG_ID: ${{ secrets.CLICKFLARE_ORG_ID }}
+          SHEETY_URL: ${{ secrets.SHEETY_URL }}
+          RINGBA_API_TOKEN: ${{ secrets.RINGBA_API_TOKEN }}
+          RINGBA_ACCOUNT_ID: ${{ secrets.RINGBA_ACCOUNT_ID }}
+          # TELEGRAM_BOT_TOKEN is deliberately withheld — the agent must not message
+          # arbitrary chats. The Report step owns the reply.
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: >-
+            --max-turns 30
+            --allowedTools "Read,Write,Bash(node scripts/lookup.mjs:*),Bash(node scripts/sales-report.mjs:*),Bash(node scripts/lead-check-api.mjs:*),Bash(node scripts/lead-reconcile-report.mjs:*),Bash(node scripts/call-check-api.mjs:*),Bash(node scripts/clickflare-api.mjs:*),Bash(cat:*),Bash(ls:*),Bash(grep:*)"
+          prompt: |
+            You are a READ-ONLY data investigator running headless in CI for the LeoSource
+            Insurance Telegram group. A teammate (${{ env.FROM }}) asked a question that needs
+            you to look at the LIVE data systems and reason across them — NOT fire a canned
+            report. Read AGENTS.md first for project context.
+
+            THEIR MESSAGE:
+            "${{ env.REQUEST }}"
+
+            You CANNOT edit code, commit, push, or deploy — and you don't need to. Your only
+            job is to INVESTIGATE and write one clear answer. If the message is actually a
+            request to CHANGE the website, do not attempt it — write a one-line reply telling
+            them to use "/change <request>".
+
+            ── YOUR TOOLS (each reads live data; credentials are already in your shell env —
+               NEVER print the env values). Run with `node`:
+            • node scripts/lookup.mjs <id1> <id2> … | <email>
+                Resolve specific ClickFlare click_ids / Boberdoo Sub_IDs / emails across
+                ClickFlare conversions + the Sheety log → per-id verdict (matched $50 /
+                unmatched $0 / not found). USE THIS FIRST whenever ids are pasted.
+            • node scripts/sales-report.mjs            (window read from the message env)
+                "How many sales / how much revenue" for today/yesterday/7d/30d/a date:
+                Sheety submitted·matched·unmatched counts + ClickFlare revenue.
+            • node scripts/lead-reconcile-report.mjs
+                "Why N in Boberdoo but M in ClickFlare?" — 3-way diff bucketed into
+                cpid-fallback / no-click_id / genuine-miss, plus Google-Ads postback fails.
+            • node scripts/lead-check-api.mjs          (email / phone / "lead <id>" / "last lead")
+                Boberdoo getLeadDetails: lead_status, TrustedForm, TCPA, LeadiD. The ONLY
+                source of per-lead Boberdoo fields. Routes through the Fixie static IP.
+            • node scripts/call-check-api.mjs          (optional phone filter in the message)
+                Verify a phone-call conversion end-to-end (Ringba pixel-fire 200 + ClickFlare).
+            • node scripts/clickflare-api.mjs conversions [YYYY-MM-DD]
+              node scripts/clickflare-api.mjs postbacks   [YYYY-MM-DD]
+                Raw ClickFlare conversion / outbound-postback rows for one day.
+            (The canned scripts read free-text args or the REQUEST env; pass ids/window as args.)
+
+            ── DATA MODEL (cite the SYSTEM each fact comes from in your answer):
+            • REVENUE lives only in ClickFlare (ConversionPayout): $50 per MATCHED lead, $0 for
+              unmatched. Boberdoo's read API exposes NO per-lead price.
+            • A "sale" = Boberdoo lead_status Matched = a paid ($50) ClickFlare conversion.
+            • Boberdoo Sub_ID = the ClickFlare click_id TRUNCATED to 30 chars — match on the
+              first 30 characters, never a full 36-char exact compare.
+            • The Sheety `payout` column is ALWAYS empty — never quote revenue from Sheety.
+              Sheety DOES carry the full clickId, the reconciled boberdooStatus, and txid.
+            • click_id ≠ cpid (cpid is ClickFlare's CampaignID, not a click id) — expected.
+            • U65 phone-call targets pay $0 by design — $0 there does NOT mean "no conversion".
+
+            ── METHOD:
+            1. If the message has pasted ids, run lookup.mjs on them FIRST.
+            2. Choose the tool(s) that actually answer the question; run them; read the output.
+            3. If two systems disagree, say so and explain the gap (lead-reconcile-report).
+            4. NEVER answer "I can't query that" — you have the tools and credentials above. If
+               a tool errors, say which system failed and what you DID learn; never invent data.
+
+            ── OUTPUT: write a SHORT, plain-text answer (no markdown headers, Telegram-friendly,
+               ≤ 15 lines) to ./_agent_inbox/REPLY.txt. Lead with the direct answer, then the
+               supporting facts, citing the system each came from (e.g. "ClickFlare: $50 payout",
+               "Boberdoo: Matched", "Sheety: boberdooStatus=matched"). Then stop.
+
+      - name: Report result
+        if: always()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: |
+          echo "================== INVESTIGATE RESULT =================="
+          echo "mode: $MODE · lookup outcome: ${{ steps.lookup.outcome }}"
+          if [ -f _agent_inbox/REPLY.txt ]; then echo "----- REPLY -----"; cat _agent_inbox/REPLY.txt
+          else echo "(no REPLY.txt written)"; fi
+          echo "======================================================="
+          [ -z "$CHAT_ID" ] && exit 0
+          if [ -f _agent_inbox/REPLY.txt ] && [ -s _agent_inbox/REPLY.txt ]; then
+            curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+              -H "Content-Type: application/json" \
+              -d "$(jq -n --arg c "$CHAT_ID" --arg t "$(cat _agent_inbox/REPLY.txt)" '{chat_id:$c,text:$t}')" >/dev/null || true
+          else
+            curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+              -H "Content-Type: application/json" \
+              -d "$(jq -n --arg c "$CHAT_ID" --arg t "🤔 I couldn't complete that investigation automatically — Eugene will check the run logs." '{chat_id:$c,text:$t}')" >/dev/null || true
+          fi

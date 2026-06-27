@@ -48,13 +48,13 @@ Never commit code that drops a tracking block.
 ├── js/                     # jquery-3.6.0.min.js, bookmarkscroll.js
 ├── images/                 # webp/png/svg assets
 ├── api/                    # Vercel serverless functions
-│   ├── telegram.js         # Telegram webhook: /change /ask /ringba /diagnose /check
+│   ├── telegram.js         # Telegram webhook: /change /ask /ringba /diagnose /check /sales /lookup /investigate; @mention questions → investigate-by-default
 │   ├── log-lead.js         # Logs each lead to Google Sheet (Sheety) + missing-click_id alert
 │   └── daily-summary.js    # 9am ET cron: daily lead summary + ClickFlare health check
-├── scripts/                # call-check-api.mjs, clickflare-api.mjs, ringba-totp.js (not deployed)
+├── scripts/                # call-check-api.mjs, clickflare-api.mjs, sales-report.mjs, lookup.mjs, ringba-totp.js (not deployed)
 ├── api_docs/               # Vendor API notes (not deployed)
-├── docs/                   # Extracted runbooks — see Further Documentation (not deployed)
-├── .github/workflows/      # telegram-agent.yml, telegram-call-check.yml
+├── docs/                   # Extracted runbooks (see Further Documentation) + agent-eval.md (not deployed)
+├── .github/workflows/      # telegram-agent.yml, telegram-call-check.yml, telegram-investigate.yml, telegram-sales.yml
 ├── vercel.json             # Cron schedule
 └── .vercelignore           # Keeps secrets/*.md/scripts out of public deploys — KEEP IT
 ```

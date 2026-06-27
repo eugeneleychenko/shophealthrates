@@ -97,59 +97,46 @@ module.exports = async (req, res) => {
     return res.status(200).send("sales handled");
   }
 
+  // Handle /lookup <ids|email> — deterministic per-id resolver (ClickFlare + Sheety).
+  // Instant, no LLM: answers "do you see these sales?" for specific click_ids/Sub_IDs.
+  if (/^\/lookup\b/i.test(text)) {
+    const botUserName = process.env.TELEGRAM_BOT_USERNAME || "";
+    const arg = text.replace(/^\/lookup(@\w+)?/i, "").split("@" + botUserName).join("").trim();
+    const from = (msg.from && (msg.from.username || msg.from.first_name)) || "client";
+    await handleInvestigate(chatId, msg.message_id, arg, from, "lookup");
+    return res.status(200).send("lookup handled");
+  }
+
+  // Handle /investigate (or /data) <question> — force the LLM data investigator to
+  // query the live systems and answer coherently (Boberdoo/ClickFlare/Sheety/Ringba).
+  if (/^\/(investigate|data)\b/i.test(text)) {
+    const botUserName = process.env.TELEGRAM_BOT_USERNAME || "";
+    const arg = text.replace(/^\/(investigate|data)(@\w+)?/i, "").split("@" + botUserName).join("").trim();
+    const from = (msg.from && (msg.from.username || msg.from.first_name)) || "client";
+    await handleInvestigate(chatId, msg.message_id, arg, from, "llm");
+    return res.status(200).send("investigate handled");
+  }
+
   let mode = null;
   if (/^\/change\b/i.test(text)) mode = "change";
   else if (/^\/(ask|q)\b/i.test(text)) mode = "ask";
   else if (botUser && text.includes("@" + botUser)) mode = "auto";
   if (!mode) return res.status(200).send("not addressed");
 
-  // Fast-path: reconciliation questions ("28 in boberdoo but 25 in clickflare,
-  // why?"). Checked BEFORE the Boberdoo/ClickFlare single-system paths because the
-  // gap question mentions both systems and needs the 3-way diff, not a row dump.
-  if (mode === "auto" && isReconcileQuestion(text)) {
+  // Investigate by default: a free-form @mention question goes to the LLM data
+  // investigator, which queries the LIVE systems (Boberdoo/ClickFlare/Sheety/Ringba)
+  // and reasons across them — instead of the old brittle keyword classifiers that
+  // short-circuited to a canned single-system report (that mis-answered a pasted-id
+  // "do you see these sales?" with a weekly aggregate). Only an explicit CHANGE
+  // request still falls through to the code-change agent below. Slash commands
+  // (/sales, /reconcile, /check, /lookup …) remain the deterministic fast paths.
+  if (mode === "auto" && !isChangeRequest(text)) {
     const q = text.split("@" + botUser).join("").trim();
-    const from = (msg.from && (msg.from.username || msg.from.first_name)) || "client";
-    await handleReconcile(chatId, msg.message_id, q, from);
-    return res.status(200).send("reconcile handled");
-  }
-
-  // Fast-path: sales / revenue questions ("how many sales this week?", "revenue
-  // today?"). Checked BEFORE the Boberdoo lead path so a sales question that also
-  // says "boberdoo" gets the sold-count + revenue report, NOT a lead-row dump.
-  if (mode === "auto" && isSalesQuestion(text)) {
-    const q = text.split("@" + botUser).join("").trim();
-    const from = (msg.from && (msg.from.username || msg.from.first_name)) || "client";
-    await handleSales(chatId, msg.message_id, q, from);
-    return res.status(200).send("sales handled");
-  }
-
-  // Fast-path: Boberdoo lead-DATA questions (TrustedForm cert, TCPA, lead status)
-  // need the getLeadDetails API (via the Fixie static IP), NOT the Sheety log —
-  // Sheety only has timestamp/click_id/phone/zip/name. Checked BEFORE the Sheety
-  // path so "...in Boberdoo, does it have TrustedForm?" routes to the API.
-  if (mode === "auto" && isBoberdooLeadQuestion(text)) {
-    const q = text.split("@" + botUser).join("").trim();
-    const from = (msg.from && (msg.from.username || msg.from.first_name)) || "client";
-    await handleLeadCheck(chatId, msg.message_id, q, from);
-    return res.status(200).send("lead-check handled");
-  }
-
-  // Fast-path: @mention questions about lead status are answered directly from
-  // the Sheety log without spinning up GitHub Actions. This avoids the "I can't
-  // query directly" response Claude Code gives when it lacks the env vars.
-  if (mode === "auto" && isLeadStatusQuestion(text)) {
-    await handleDiagnose(chatId, "recent");
-    return res.status(200).send("lead-status handled");
-  }
-
-  // Fast-path: @mention questions about a phone call / conversion (Ringba /
-  // ClickFlare) spin up the headless cloud check instead of the code-change agent.
-  if (mode === "auto" && isCallConversionQuestion(text)) {
-    const botUserName = process.env.TELEGRAM_BOT_USERNAME || "";
-    const q = text.split("@" + botUserName).join("").trim();
-    const from = (msg.from && (msg.from.username || msg.from.first_name)) || "client";
-    await handleCallCheck(chatId, msg.message_id, q, from);
-    return res.status(200).send("call-check handled");
+    if (q) {
+      const from = (msg.from && (msg.from.username || msg.from.first_name)) || "client";
+      await handleInvestigate(chatId, msg.message_id, q, from, "llm");
+      return res.status(200).send("investigate (auto) handled");
+    }
   }
 
   const request = text
@@ -284,73 +271,18 @@ async function cancelAgentRuns() {
   }
 }
 
-// Detect whether an @mention message is asking about lead status so we can
-// answer directly from Sheety instead of going through GitHub Actions.
-function isLeadStatusQuestion(text) {
-  const t = text.toLowerCase();
-  return (
-    /lead.{0,30}(post|came|come|submitt|sent|went|go|through|correct|work|fire|log|track)/i.test(t) ||
-    /did.{0,20}lead/i.test(t) ||
-    /(last|latest|recent|new).{0,20}lead/i.test(t) ||
-    /lead.{0,20}(last|latest|recent)/i.test(t) ||
-    /postback.{0,30}(fire|work|sent|correct)/i.test(t) ||
-    /(click.*id|click_id).{0,30}(present|there|missing|found|empty)/i.test(t)
-  );
-}
-
-// Detect whether an @mention needs the Boberdoo lead API (getLeadDetails) rather
-// than the Sheety submission log — i.e. it asks about Boberdoo lead DATA fields
-// (TrustedForm cert, TCPA, Jornaya LeadiD) that Sheety doesn't carry.
-function isBoberdooLeadQuestion(text) {
-  const t = text.toLowerCase();
-  return /\bboberdoo\b/.test(t) || /trusted\s*form|trustedform|trusted_form|\bcert\b|\btcpa\b|leadid|jornaya/.test(t);
-}
-
-// Detect whether an @mention is asking about a PHONE CALL / conversion (Ringba +
-// ClickFlare) so we route it to the headless cloud check instead of the
-// code-change agent. Lead-form questions are handled separately (Sheety) above.
-function isCallConversionQuestion(text) {
-  const t = text.toLowerCase();
-  // "call to action" / "cta" is website copy, not a phone call — never a check.
-  if (/call[\s-]?to[\s-]?action|\bcta\b/.test(t)) return false;
-  return (
-    /\bringba\b/.test(t) ||
-    /\bclickflare\b/.test(t) ||
-    /\bconversions?\b/.test(t) ||
-    /\bconverted\b/.test(t) ||
-    /\bcalls?\b.{0,40}\b(today|convert|occur|happen|fire|track|through|count|log|connect|regist|came|come|go|went)\b/.test(t) ||
-    /\b(check|verify|did|was|any|register|registered)\b.{0,40}\b(conversions?|calls?)\b/.test(t)
-  );
-}
-
-// Detect a SALES / REVENUE report question ("how many sales this week?", "revenue
-// today?", "how many leads did we sell?"). Routed to /sales (sold count + ClickFlare
-// revenue). Checked AFTER reconcile (a "gap" question still wins) but BEFORE the
-// bare-"boberdoo" lead path, so "sales in boberdoo" isn't answered with a row dump.
-function isSalesQuestion(text) {
-  const t = text.toLowerCase();
-  // "sales page/tax/funnel", "for sale", "on sale" are site copy, not a report.
-  if (/\bsales\s*(page|tax|copy|pitch|funnel)\b|\bfor sale\b|\bon sale\b/.test(t)) return false;
-  return (
-    /\bsales?\b/.test(t) ||
-    /\brevenue\b/.test(t) ||
-    /\bsold\b/.test(t) ||
-    /how much.{0,30}(made|earn|revenue|money|paid)/.test(t) ||
-    /\b(how many|number of)\b.{0,30}\b(sales?|sold|deals?)\b/.test(t)
-  );
-}
-
-// Detect a reconciliation question — a cross-system COUNT discrepancy between
-// Boberdoo and ClickFlare ("28 in boberdoo but 25 in clickflare", "why the gap",
-// "numbers don't match"). Routed to the 3-way diff, not the single-system checks.
-function isReconcileQuestion(text) {
-  const t = text.toLowerCase();
-  if (/\breconcile|reconciliation\b/.test(t)) return true;
-  const bothSystems = /\bboberdoo\b/.test(t) && /\bclickflare\b/.test(t);
-  const gapWord = /\bgap\b|discrepan|mismatch|don'?t match|doesn'?t match|not match|differ|\bvs\.?\b|more than|fewer|less than|missing/.test(t);
-  // Both systems named together is almost always a "why don't these agree" question;
-  // a gap word alongside either system also qualifies.
-  return bothSystems || (gapWord && (/\bboberdoo\b/.test(t) || /\bclickflare\b/.test(t)));
+// Detect a clear CODE/SITE change request, so it still goes to the code-change agent
+// while everything else (questions, data asks) is investigated by default. Deliberately
+// CONSERVATIVE: requires an edit verb AND a UI/site noun, and never a question — so a
+// data ask with an edit-ish word ("add up the sales", "did sales increase?") is NOT
+// treated as a change and reaches the investigator. Explicit /change is the reliable
+// way to request an edit regardless.
+function isChangeRequest(text) {
+  const t = text.toLowerCase().trim();
+  if (/\?\s*$/.test(t)) return false;                       // a question is never a change
+  const verb = /\b(make|change|add|remove|delete|move|fix|update|set|replace|rename|swap|edit|tweak|adjust|hide|redirect|reword|rewrite|capitalize|bold|underline|resize|recolor|re-?color|shrink|enlarge|bigger|smaller)\b/;
+  const noun = /\b(headline|title|button|link|text|copy|color|colour|font|image|logo|page|header|footer|form|field|number|phone|cta|banner|section|quiz|step|homepage|home page|site|website|word|wording|spelling|typo|background|menu|nav|css|html|style)\b/;
+  return verb.test(t) && noun.test(t);
 }
 
 // Dispatch the telegram-reconcile workflow (Boberdoo + ClickFlare + Sheety diff),
@@ -416,6 +348,41 @@ async function handleSales(chatId, messageId, request, from) {
     return;
   }
   await tgSend(chatId, "🧾 Pulling sales (" + (request && request.trim() ? request.trim() : "this week") + ")… one moment.");
+  if (messageId) await tgReact(chatId, messageId, "👀");
+}
+
+// Dispatch the telegram-investigate workflow. mode="lookup" runs the deterministic
+// id resolver (scripts/lookup.mjs); mode="llm" (default) runs the read-only LLM data
+// investigator, which queries the live systems and reasons across them. It posts the
+// answer back to the chat itself.
+async function handleInvestigate(chatId, messageId, request, from, mode) {
+  let dispatch;
+  try {
+    dispatch = await fetch(
+      `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/dispatches`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+          Accept: "application/vnd.github+json",
+          "X-GitHub-Api-Version": "2022-11-28",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          event_type: "telegram-investigate",
+          client_payload: { request: request || "", mode: mode || "llm", chat_id: chatId, message_id: messageId, from: from || "client" },
+        }),
+      }
+    );
+  } catch (err) {
+    await tgSend(chatId, "⚠️ Couldn't start the investigation (" + err.message + "). Eugene will take a look.");
+    return;
+  }
+  if (!dispatch.ok) {
+    await tgSend(chatId, `⚠️ Couldn't start the investigation (GitHub ${dispatch.status}). Eugene will take a look.`);
+    return;
+  }
+  await tgSend(chatId, mode === "lookup" ? "🔎 Looking those up… one moment." : "🔎 Looking into that across the live systems… one moment.");
   if (messageId) await tgReact(chatId, messageId, "👀");
 }
 
