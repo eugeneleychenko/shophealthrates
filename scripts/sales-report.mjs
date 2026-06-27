@@ -157,19 +157,23 @@ async function getSheet() {
     L.push(`ℹ️ ${matched} Boberdoo-matched vs ${soldUnique} ClickFlare-sold — /reconcile explains the gap.`);
   }
 
-  // Per-client roster — the answer to "which clients were they". Exact, capped for Telegram.
+  // Per-client roster — the answer to "which clients were they". Char-budgeted so the
+  // whole reply stays well under Telegram's 4096 limit regardless of how long the list is.
   if (WANT_CLIENTS && !cfErr) {
     L.push('—');
     L.push(`Clients sold (${roster.length}):`);
-    const CAP = 45;
     if (!roster.length) L.push('• (none in this window)');
-    roster.slice(0, CAP).forEach((c) => {
+    const BUDGET = 3400;                       // roster stops here; header+footer fit the rest
+    let used = L.join('\n').length, shown = 0;
+    for (const c of roster) {
       const who = c.email || c.name || ('clickId ' + String(c.clickId).slice(0, 12) + '…');
       const amt = c.n > 1 ? `${money(c.sum)} (${c.n} sales)` : money(c.sum);
       const nm = c.email && c.name ? ' · ' + c.name : '';
-      L.push(`• ${who} — ${amt}${nm}`);
-    });
-    if (roster.length > CAP) L.push(`…(+${roster.length - CAP} more — narrow to a single day to list all)`);
+      const line = `• ${who} — ${amt}${nm}`;
+      if (used + line.length + 90 > BUDGET) break;   // 90 = headroom for the tail + footer
+      L.push(line); used += line.length + 1; shown++;
+    }
+    if (shown < roster.length) L.push(`…(+${roster.length - shown} more — narrow to a single day to list all)`);
     if (phoneConv) L.push(`📞 ${phoneConv} phone-call sale(s) — no email (caller identity is in Ringba; use /check)`);
   }
 
