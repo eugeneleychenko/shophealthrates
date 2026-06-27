@@ -1,0 +1,38 @@
+name: _probe-fields (temporary)
+
+# TEMPORARY, manual-only, READ-ONLY probe to identify the Boberdoo getLeadDetails
+# per-lead PRICE field for the /sales revenue feature. Dumps a PII-masked field
+# map to the run log. Writes nothing, posts nothing. Delete after use.
+on:
+  workflow_dispatch:
+    inputs:
+      probe_ids:
+        description: "Comma-separated Matched lead ids to inspect"
+        required: false
+        default: "17235943,17235941,17235929,17235927"
+
+concurrency:
+  group: probe-fields-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install undici (proxy dispatcher)
+        run: npm i undici
+
+      - name: Probe getLeadDetails field map
+        env:
+          BOBERDOO_ADMIN_KEY: ${{ secrets.BOBERDOO_ADMIN_KEY }}
+          FIXIE_URL: ${{ secrets.FIXIE_URL }}
+          PROBE_IDS: ${{ github.event.inputs.probe_ids }}
+        run: node scripts/_probe-fields.mjs
