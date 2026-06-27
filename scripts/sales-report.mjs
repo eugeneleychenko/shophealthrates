@@ -53,6 +53,11 @@ function parseWindow(req) {
 
 const num = (x) => { const n = parseFloat(x); return Number.isFinite(n) ? n : 0; };
 const isPhone = (i) => (i.ConversionTransaction || '').startsWith('RGB');
+const key30 = (s) => String(s || '').toLowerCase().slice(0, 30);   // join click_id ↔ 30-char Sub_ID
+const firstNameOf = (r) => { const m = ((r && r.rawQuery) || '').match(/name=([^&]*)/); return m && m[1] ? decodeURIComponent(m[1].replace(/\+/g, ' ')).trim() : ''; };
+// "who / which clients / names / emails" intent → append a deterministic per-client
+// roster so the answer is exact (no LLM hand-counting).
+const WANT_CLIENTS = /\b(which|who|whom|client|clients|customer|customers|name|names|email|emails|list|each|breakdown|roster|individual)\b/i.test(REQUEST);
 
 async function getSheet() {
   const res = await fetch(SHEETY_URL);
@@ -67,10 +72,13 @@ async function getSheet() {
   const inWindow = (iso) => { const d = etDayOf(iso); return d && d >= W.startDay && d <= W.endDay; };
 
   // ── Sheety: counts (submitted / matched / unmatched / pending) ──
-  let sheet = [], sheetErr = null;
+  // Keep allRows (every submit) for the client-roster email join — a lead can convert
+  // a day after it submits, so the join must search beyond the window's rows.
+  let sheet = [], allRows = [], sheetErr = null;
   try {
     const rows = await getSheet();
-    sheet = rows.filter((r) => r.event === 'lead_submitted' && inWindow(r.timestamp));
+    allRows = rows.filter((r) => r.event === 'lead_submitted');
+    sheet = allRows.filter((r) => inWindow(r.timestamp));
   } catch (e) { sheetErr = e.message; }
   const statusIs = (r, s) => (r.boberdooStatus || '').trim().toLowerCase() === s;
   const submitted = sheet.length;
@@ -84,11 +92,12 @@ async function getSheet() {
   // conversion, so they sum to nothing and aren't counted as sold. Re-fires of the
   // same click inflate the event count (and the ClickFlare-dashboard revenue), so
   // we surface unique-lead vs event counts rather than hide the duplication.
-  let revenue = 0, soldEvents = 0, soldUnique = 0, phoneConv = 0, paidVals = [], cfErr = null;
+  let revenue = 0, soldEvents = 0, soldUnique = 0, phoneConv = 0, paidVals = [], paidLeads = [], cfErr = null;
   try {
     const items = await allEventLogs({ ...W.cfOpts, eventType: 'conversion' });
     const leads = items.filter((i) => !isPhone(i));
     const paid = leads.filter((i) => num(i.ConversionPayout) > 0);
+    paidLeads = paid;
     soldEvents = paid.length;
     soldUnique = new Set(paid.map((i) => i.ClickID).filter(Boolean)).size;
     phoneConv = items.filter(isPhone).length;
@@ -107,6 +116,24 @@ async function getSheet() {
   else if (!soldEvents) soldText = '0';
   else if (soldEvents === soldUnique) soldText = `${soldEvents} lead${soldEvents === 1 ? '' : 's'}${priceTag}`;
   else soldText = `${soldEvents} conversions across ${soldUnique} lead${soldUnique === 1 ? '' : 's'}${priceTag}`;
+
+  // ── Per-client roster (only when asked "which/who/clients/names/emails"):
+  // group paid lead conversions by unique click, join Sheety for email/name. Built
+  // from the SAME paid conversions as the count above, so it can't disagree with it.
+  let roster = [];
+  if (WANT_CLIENTS && !cfErr) {
+    const byClick = new Map();
+    for (const i of paidLeads) {
+      const k = key30(i.ClickID);
+      if (!k) continue;
+      const g = byClick.get(k) || { key: k, clickId: i.ClickID, n: 0, sum: 0 };
+      g.n += 1; g.sum += num(i.ConversionPayout); byClick.set(k, g);
+    }
+    roster = [...byClick.values()].map((g) => {
+      const r = allRows.find((x) => x.clickId && key30(x.clickId) === g.key);
+      return { ...g, email: (r && r.email) || '', name: firstNameOf(r) };
+    }).sort((a, b) => b.sum - a.sum);
+  }
 
   // ── Build the reply ──
   const L = [];
@@ -128,6 +155,22 @@ async function getSheet() {
   // reconcile lag, re-fires). Surface it rather than imply false agreement.
   if (!sheetErr && !cfErr && soldUnique && Math.abs(matched - soldUnique) > Math.max(2, soldUnique * 0.15)) {
     L.push(`ℹ️ ${matched} Boberdoo-matched vs ${soldUnique} ClickFlare-sold — /reconcile explains the gap.`);
+  }
+
+  // Per-client roster — the answer to "which clients were they". Exact, capped for Telegram.
+  if (WANT_CLIENTS && !cfErr) {
+    L.push('—');
+    L.push(`Clients sold (${roster.length}):`);
+    const CAP = 45;
+    if (!roster.length) L.push('• (none in this window)');
+    roster.slice(0, CAP).forEach((c) => {
+      const who = c.email || c.name || ('clickId ' + String(c.clickId).slice(0, 12) + '…');
+      const amt = c.n > 1 ? `${money(c.sum)} (${c.n} sales)` : money(c.sum);
+      const nm = c.email && c.name ? ' · ' + c.name : '';
+      L.push(`• ${who} — ${amt}${nm}`);
+    });
+    if (roster.length > CAP) L.push(`…(+${roster.length - CAP} more — narrow to a single day to list all)`);
+    if (phoneConv) L.push(`📞 ${phoneConv} phone-call sale(s) — no email (caller identity is in Ringba; use /check)`);
   }
 
   L.push('—');

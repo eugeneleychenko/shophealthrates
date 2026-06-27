@@ -152,9 +152,11 @@ jobs:
                 Resolve specific ClickFlare click_ids / Boberdoo Sub_IDs / emails across
                 ClickFlare conversions + the Sheety log → per-id verdict (matched $50 /
                 unmatched $0 / not found). USE THIS FIRST whenever ids are pasted.
-            • node scripts/sales-report.mjs            (window read from the message env)
+            • node scripts/sales-report.mjs            (window + intent read from the message env)
                 "How many sales / how much revenue" for today/yesterday/7d/30d/a date:
-                Sheety submitted·matched·unmatched counts + ClickFlare revenue.
+                Sheety submitted·matched·unmatched counts + ClickFlare revenue. If the
+                question asks WHICH / WHO / clients / names / emails, it also appends an
+                exact per-client roster. This is the AUTHORITATIVE sales tool.
             • node scripts/lead-reconcile-report.mjs
                 "Why N in Boberdoo but M in ClickFlare?" — 3-way diff bucketed into
                 cpid-fallback / no-click_id / genuine-miss, plus Google-Ads postback fails.
@@ -181,9 +183,14 @@ jobs:
 
             ── METHOD:
             1. If the message has pasted ids, run lookup.mjs on them FIRST.
-            2. Choose the tool(s) that actually answer the question; run them; read the output.
-            3. If two systems disagree, say so and explain the gap (lead-reconcile-report).
-            4. NEVER answer "I can't query that" — you have the tools and credentials above. If
+            2. For ANY question about sales / revenue / "how many sold" / "which clients /
+               who / names / emails", run `node scripts/sales-report.mjs` and quote its
+               numbers and client roster EXACTLY. NEVER hand-count conversions, sum payouts,
+               or assemble a client list yourself — sales-report.mjs is authoritative and its
+               output is already Telegram-ready (you may relay it almost verbatim).
+            3. Otherwise choose the tool(s) that answer the question; run them; read the output.
+            4. If two systems disagree, say so and explain the gap (lead-reconcile-report).
+            5. NEVER answer "I can't query that" — you have the tools and credentials above. If
                a tool errors, say which system failed and what you DID learn; never invent data.
 
             ── OUTPUT: write a SHORT, plain-text answer (no markdown headers, Telegram-friendly,
