@@ -1,0 +1,78 @@
+name: Telegram sales
+
+# Answers "how many sales / how much revenue?" for a window. Fired by the Vercel
+# webhook (api/telegram.js) on a /sales command or a sales/revenue question, or
+# run manually. Runs scripts/sales-report.mjs, which combines:
+#   • Sheety log → submitted / sold (Boberdoo matched) / unmatched / pending
+#   • ClickFlare eventLogs → REVENUE (ConversionPayout) + conversion counts
+# No Boberdoo/Fixie call — counts come from the already-reconciled Sheety log, and
+# revenue from ClickFlare (Boberdoo's read API exposes no per-lead price).
+#
+# Run it:  gh workflow run "Telegram sales" -f request="this week"
+#
+# Requires secrets: SHEETY_URL, CLICKFLARE_USERNAME, CLICKFLARE_PASSWORD,
+# TELEGRAM_BOT_TOKEN.
+on:
+  repository_dispatch:
+    types: [telegram-sales]
+  workflow_dispatch:
+    inputs:
+      request:
+        description: "Window: today · yesterday · 7d/week · 30d/month · YYYY-MM-DD"
+        required: false
+        default: "this week"
+      chat_id:
+        description: "Telegram chat id to reply to (blank = just print to the run log)"
+        required: false
+      message_id:
+        description: "Telegram message id for a reaction (optional)"
+        required: false
+
+concurrency:
+  group: telegram-sales-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  sales:
+    runs-on: ubuntu-latest
+    env:
+      CHAT_ID: ${{ github.event.client_payload.chat_id || github.event.inputs.chat_id }}
+      MESSAGE_ID: ${{ github.event.client_payload.message_id || github.event.inputs.message_id }}
+      REQUEST: ${{ github.event.client_payload.request || github.event.inputs.request }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Sales report (Sheety counts + ClickFlare revenue)
+        id: sales
+        continue-on-error: true
+        env:
+          SHEETY_URL: ${{ secrets.SHEETY_URL }}
+          CLICKFLARE_USERNAME: ${{ secrets.CLICKFLARE_USERNAME }}
+          CLICKFLARE_PASSWORD: ${{ secrets.CLICKFLARE_PASSWORD }}
+        run: node scripts/sales-report.mjs
+
+      - name: Report result
+        if: always()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: |
+          echo "===================== SALES RESULT ====================="
+          echo "script outcome: ${{ steps.sales.outcome }}"
+          if [ -f _agent_inbox/REPLY.txt ]; then
+            echo "----- REPLY -----"; cat _agent_inbox/REPLY.txt
+          else
+            echo "(no REPLY.txt was written)"
+          fi
+          echo "======================================================="
+
+          if [ -n "$CHAT_ID" ] && [ -f _agent_inbox/REPLY.txt ]; then
+            curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+              -H "Content-Type: application/json" \
+              -d "$(jq -n --arg c "$CHAT_ID" --arg t "$(cat _agent_inbox/REPLY.txt)" '{chat_id:$c, text:$t}')" >/dev/null || true
+          fi

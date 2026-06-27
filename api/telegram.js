@@ -87,6 +87,16 @@ module.exports = async (req, res) => {
     return res.status(200).send("call-check handled");
   }
 
+  // Handle /sales (or /revenue) — sold-lead count + ClickFlare revenue for a
+  // window (today/week/30d/date). Cloud workflow: Sheety counts + ClickFlare $.
+  if (/^\/(sales|revenue)\b/i.test(text)) {
+    const botUserName = process.env.TELEGRAM_BOT_USERNAME || "";
+    const arg = text.replace(/^\/(sales|revenue)(@\w+)?/i, "").split("@" + botUserName).join("").trim();
+    const from = (msg.from && (msg.from.username || msg.from.first_name)) || "client";
+    await handleSales(chatId, msg.message_id, arg, from);
+    return res.status(200).send("sales handled");
+  }
+
   let mode = null;
   if (/^\/change\b/i.test(text)) mode = "change";
   else if (/^\/(ask|q)\b/i.test(text)) mode = "ask";
@@ -101,6 +111,16 @@ module.exports = async (req, res) => {
     const from = (msg.from && (msg.from.username || msg.from.first_name)) || "client";
     await handleReconcile(chatId, msg.message_id, q, from);
     return res.status(200).send("reconcile handled");
+  }
+
+  // Fast-path: sales / revenue questions ("how many sales this week?", "revenue
+  // today?"). Checked BEFORE the Boberdoo lead path so a sales question that also
+  // says "boberdoo" gets the sold-count + revenue report, NOT a lead-row dump.
+  if (mode === "auto" && isSalesQuestion(text)) {
+    const q = text.split("@" + botUser).join("").trim();
+    const from = (msg.from && (msg.from.username || msg.from.first_name)) || "client";
+    await handleSales(chatId, msg.message_id, q, from);
+    return res.status(200).send("sales handled");
   }
 
   // Fast-path: Boberdoo lead-DATA questions (TrustedForm cert, TCPA, lead status)
@@ -303,6 +323,23 @@ function isCallConversionQuestion(text) {
   );
 }
 
+// Detect a SALES / REVENUE report question ("how many sales this week?", "revenue
+// today?", "how many leads did we sell?"). Routed to /sales (sold count + ClickFlare
+// revenue). Checked AFTER reconcile (a "gap" question still wins) but BEFORE the
+// bare-"boberdoo" lead path, so "sales in boberdoo" isn't answered with a row dump.
+function isSalesQuestion(text) {
+  const t = text.toLowerCase();
+  // "sales page/tax/funnel", "for sale", "on sale" are site copy, not a report.
+  if (/\bsales\s*(page|tax|copy|pitch|funnel)\b|\bfor sale\b|\bon sale\b/.test(t)) return false;
+  return (
+    /\bsales?\b/.test(t) ||
+    /\brevenue\b/.test(t) ||
+    /\bsold\b/.test(t) ||
+    /how much.{0,30}(made|earn|revenue|money|paid)/.test(t) ||
+    /\b(how many|number of)\b.{0,30}\b(sales?|sold|deals?)\b/.test(t)
+  );
+}
+
 // Detect a reconciliation question — a cross-system COUNT discrepancy between
 // Boberdoo and ClickFlare ("28 in boberdoo but 25 in clickflare", "why the gap",
 // "numbers don't match"). Routed to the 3-way diff, not the single-system checks.
@@ -346,6 +383,39 @@ async function handleReconcile(chatId, messageId, request, from) {
     return;
   }
   await tgSend(chatId, "🔎 Reconciling Boberdoo ↔ ClickFlare (today)… one moment.");
+  if (messageId) await tgReact(chatId, messageId, "👀");
+}
+
+// Dispatch the telegram-sales workflow (Sheety sold-count + ClickFlare revenue for
+// a window), which posts the sales report back to the chat itself.
+async function handleSales(chatId, messageId, request, from) {
+  let dispatch;
+  try {
+    dispatch = await fetch(
+      `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/dispatches`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+          Accept: "application/vnd.github+json",
+          "X-GitHub-Api-Version": "2022-11-28",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          event_type: "telegram-sales",
+          client_payload: { request: request || "", chat_id: chatId, message_id: messageId, from: from || "client" },
+        }),
+      }
+    );
+  } catch (err) {
+    await tgSend(chatId, "⚠️ Couldn't start the sales report (" + err.message + "). Eugene will take a look.");
+    return;
+  }
+  if (!dispatch.ok) {
+    await tgSend(chatId, `⚠️ Couldn't start the sales report (GitHub ${dispatch.status}). Eugene will take a look.`);
+    return;
+  }
+  await tgSend(chatId, "🧾 Pulling sales (" + (request && request.trim() ? request.trim() : "this week") + ")… one moment.");
   if (messageId) await tgReact(chatId, messageId, "👀");
 }
 

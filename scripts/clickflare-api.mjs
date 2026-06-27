@@ -68,7 +68,7 @@ function dayRange(date, days = 0) {
 
 // Conversions (and other events). Pass {clickId} to match a specific click;
 // {days} widens the window to the last N days (default = single day = today/date).
-export async function eventLogs({ date, days = 0, clickId, eventType = 'conversion', pageSize = 100 } = {}) {
+export async function eventLogs({ date, days = 0, clickId, eventType = 'conversion', pageSize = 100, page = 1 } = {}) {
   const { startDate, endDate, timezone } = dayRange(date, days);
   const metricsFilters = [];
   if (eventType) metricsFilters.push({ name: 'EventType', operator: '=', value: eventType });
@@ -77,9 +77,22 @@ export async function eventLogs({ date, days = 0, clickId, eventType = 'conversi
     startDate, endDate, timezone,
     metrics: ['EventType', 'ClickID', 'ConversionTransaction', 'ConversionDate', 'ConversionPayout', 'CustomConversionNumber'],
     ...(metricsFilters.length ? { metricsFilters } : {}),
-    sortBy: 'ConversionDate', orderType: 'desc', page: 1, pageSize,
+    sortBy: 'ConversionDate', orderType: 'desc', page, pageSize,
   });
   return r.items || [];
+}
+
+// Page through eventLogs until a short page — a single day fits in one page, but a
+// multi-day window can exceed pageSize (the API caps a page at 100), so paginate.
+export async function allEventLogs(opts = {}) {
+  const pageSize = opts.pageSize || 500;
+  const all = [];
+  for (let page = 1; page <= 50; page++) {       // 50-page backstop (≤25k events)
+    const items = await eventLogs({ ...opts, pageSize, page });
+    all.push(...items);
+    if (items.length < pageSize) break;
+  }
+  return all;
 }
 
 // Outbound postback / Conversion-API send results (incl. Google Ads errors).
