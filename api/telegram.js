@@ -50,6 +50,12 @@ module.exports = async (req, res) => {
   //   /change <edit>   → make a code change + deploy
   //   /ask <question>  → answer a question, no code changes, no deploy
   //   @mention <text>  → "auto": the agent decides whether to answer or change
+  // Handle /help locally — list every command the bot understands.
+  if (/^\/help\b/i.test(text)) {
+    await handleHelp(chatId);
+    return res.status(200).send("help handled");
+  }
+
   // Handle /diagnose locally — no GitHub Actions needed
   if (/^\/diagnose\b/i.test(text)) {
     const arg = text.replace(/^\/diagnose(@\w+)?/i, "").trim();
@@ -521,6 +527,33 @@ async function handleRingbaMfa(chatId) {
   } catch (err) {
     await tgSend(chatId, "❌ Couldn't generate MFA code: " + err.message);
   }
+}
+
+// /help command — list every command the bot understands (local, no Actions).
+async function handleHelp(chatId) {
+  const msg = [
+    "🤖 LeoSource bot — commands",
+    "",
+    "Tip: just @mention me with any question and I'll investigate the live systems (Boberdoo · ClickFlare · Sheety · Ringba) and answer. Or use a command for an instant, exact report:",
+    "",
+    "📊 Data & reports",
+    '/sales [today·week·30d·date] — sold count + revenue; add "clients" for the buyer list',
+    "/keywords [today·week·sales] — top keywords & campaigns driving leads  (alias /ads)",
+    "/lookup <id·email> — is this click_id / Sub_ID / email a sale? ($50 = matched)",
+    "/reconcile — why Boberdoo vs ClickFlare counts differ  (alias /gap)",
+    "/check [phone] — did a phone call convert end-to-end?  (aliases /call /conversion)",
+    "/diagnose [recent·health·<search>] — recent lead log / postback health / search",
+    "",
+    "🛠️ Ops & site",
+    "/ringba — current Ringba 2FA code  (alias /mfa)",
+    "/change <edit> — change the website and deploy it",
+    "/ask <question> — answer a question about the site/code, no change  (alias /q)",
+    "/investigate <question> — force a deep data investigation  (alias /data)",
+    '"stop" — cancel a running change',
+    "",
+    "/help — this message",
+  ].join("\n");
+  await tgSend(chatId, msg);
 }
 
 // /diagnose command — query lead logs from Sheety.co

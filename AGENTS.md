@@ -48,7 +48,7 @@ Never commit code that drops a tracking block.
 ├── js/                     # jquery-3.6.0.min.js, bookmarkscroll.js
 ├── images/                 # webp/png/svg assets
 ├── api/                    # Vercel serverless functions
-│   ├── telegram.js         # Telegram webhook: /change /ask /ringba /diagnose /check /sales /lookup /investigate /keywords; @mention questions → investigate-by-default
+│   ├── telegram.js         # Telegram webhook: /help /change /ask /ringba /diagnose /check /sales /lookup /investigate /keywords; @mention questions → investigate-by-default (see Telegram Bot Commands)
 │   ├── log-lead.js         # Logs each lead to Google Sheet (Sheety) + missing-click_id alert
 │   └── daily-summary.js    # 9am ET cron: daily lead summary + ClickFlare health check
 ├── scripts/                # call-check-api.mjs, clickflare-api.mjs, sales-report.mjs, lookup.mjs, ringba-totp.js (not deployed)
@@ -65,6 +65,26 @@ Never commit code that drops a tracking block.
 - **Quiz flow**: `index.html` → `quiz.html?zip=<value>` → `thank-you.html`.
 - **No framework** — vanilla HTML/JS. jQuery loads on index/thank-you/privacy/term, but **never on `quiz.html`**.
 - **Fonts** are self-hosted in `css/` via `@font-face` in `style.css`.
+
+## Telegram Bot Commands
+
+The bot is `@leosource_bot` in the "Leosource/ Integrations" group; the webhook is `api/telegram.js` (Vercel). **Free-form @mention questions go to the investigate-by-default LLM agent** (`telegram-investigate.yml`), which queries the live systems (Boberdoo · ClickFlare · Sheety · Ringba) and answers; the slash commands below are deterministic shortcuts. **`/help` prints this list in-chat** (keep `handleHelp()` in `telegram.js` in sync with this table).
+
+| Command (aliases) | What it does | Where it runs |
+|---|---|---|
+| `/help` | List all commands | local (telegram.js) |
+| `/sales [today·week·30d·date]` | Sold count + ClickFlare revenue for a window; add "which clients" for the per-buyer roster | telegram-sales.yml → sales-report.mjs |
+| `/keywords [window·sales]` (`/ads`) | Top keywords + campaigns (Boberdoo campaign_id/ad_id/keyword) | telegram-investigate.yml mode=ad → ad-report.mjs |
+| `/lookup <ids·email>` | Per-id verdict — is this click_id/Sub_ID/email matched ($50) or not | telegram-investigate.yml mode=lookup → lookup.mjs |
+| `/investigate <q>` (`/data`) | Force the LLM data investigator | telegram-investigate.yml mode=llm |
+| `/reconcile` (`/gap`) | Categorized Boberdoo↔ClickFlare count-gap verdict | telegram-reconcile.yml → lead-reconcile-report.mjs |
+| `/check [phone]` (`/call`, `/conversion`) | Verify a phone-call conversion end-to-end (Ringba + ClickFlare) | telegram-call-check.yml → call-check-api.mjs |
+| `/diagnose [recent·health·<search>]` | Sheety lead log: recent leads / postback health / search | local (telegram.js) |
+| `/ringba` (`/mfa`) | Current Ringba 2FA (TOTP) code | local (telegram.js) |
+| `/change <edit>` | Edit the website + commit + deploy | telegram-agent.yml |
+| `/ask <q>` (`/q`) | Answer a question about the site/code (no change) | telegram-agent.yml |
+| `@mention <question>` | Investigate-by-default — LLM queries the live systems and answers | telegram-investigate.yml |
+| `stop` / `cancel` | Cancel a running `/change` | local (telegram.js) |
 
 ## Protected Tracking Codes — DO NOT MODIFY
 
