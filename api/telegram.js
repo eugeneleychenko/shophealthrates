@@ -117,6 +117,16 @@ module.exports = async (req, res) => {
     return res.status(200).send("investigate handled");
   }
 
+  // Handle /keywords (or /ads) <window> — deterministic top keyword/campaign ranking
+  // from the Boberdoo campaign_id/ad_id/keyword fields (add "sales" for matched-only).
+  if (/^\/(keywords?|ads)\b/i.test(text)) {
+    const botUserName = process.env.TELEGRAM_BOT_USERNAME || "";
+    const arg = text.replace(/^\/(keywords?|ads)(@\w+)?/i, "").split("@" + botUserName).join("").trim();
+    const from = (msg.from && (msg.from.username || msg.from.first_name)) || "client";
+    await handleInvestigate(chatId, msg.message_id, arg, from, "ad");
+    return res.status(200).send("ad-report handled");
+  }
+
   let mode = null;
   if (/^\/change\b/i.test(text)) mode = "change";
   else if (/^\/(ask|q)\b/i.test(text)) mode = "ask";
@@ -382,7 +392,10 @@ async function handleInvestigate(chatId, messageId, request, from, mode) {
     await tgSend(chatId, `⚠️ Couldn't start the investigation (GitHub ${dispatch.status}). Eugene will take a look.`);
     return;
   }
-  await tgSend(chatId, mode === "lookup" ? "🔎 Looking those up… one moment." : "🔎 Looking into that across the live systems… one moment.");
+  const ack = mode === "lookup" ? "🔎 Looking those up… one moment."
+    : mode === "ad" ? "🔎 Ranking keywords/campaigns… one moment."
+    : "🔎 Looking into that across the live systems… one moment.";
+  await tgSend(chatId, ack);
   if (messageId) await tgReact(chatId, messageId, "👀");
 }
 

@@ -112,7 +112,17 @@ jobs:
           CLICKFLARE_ORG_ID: ${{ secrets.CLICKFLARE_ORG_ID }}
         run: node scripts/lookup.mjs      # reads REQUEST from job env
 
-      # ── LLM investigation — runs unless the deterministic lookup already answered.
+      # ── mode=ad: deterministic keyword/campaign ranking (no LLM). Boberdoo via Fixie.
+      - name: Deterministic ad-attribution report
+        if: env.MODE == 'ad'
+        id: adreport
+        continue-on-error: true
+        env:
+          BOBERDOO_ADMIN_KEY: ${{ secrets.BOBERDOO_ADMIN_KEY }}
+          FIXIE_URL: ${{ env.FIXIE_URL }}
+        run: node scripts/ad-report.mjs      # reads REQUEST from job env
+
+      # ── LLM investigation — runs unless a deterministic step already answered.
       - name: Investigate with Claude
         if: hashFiles('_agent_inbox/REPLY.txt') == ''
         uses: anthropics/claude-code-action@v1
@@ -131,7 +141,7 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: >-
             --max-turns 30
-            --allowedTools "Read,Write,Bash(node scripts/lookup.mjs:*),Bash(node scripts/sales-report.mjs:*),Bash(node scripts/lead-check-api.mjs:*),Bash(node scripts/lead-reconcile-report.mjs:*),Bash(node scripts/call-check-api.mjs:*),Bash(node scripts/clickflare-api.mjs:*),Bash(cat:*),Bash(ls:*),Bash(grep:*)"
+            --allowedTools "Read,Write,Bash(node scripts/lookup.mjs:*),Bash(node scripts/sales-report.mjs:*),Bash(node scripts/ad-report.mjs:*),Bash(node scripts/lead-check-api.mjs:*),Bash(node scripts/lead-reconcile-report.mjs:*),Bash(node scripts/call-check-api.mjs:*),Bash(node scripts/clickflare-api.mjs:*),Bash(cat:*),Bash(ls:*),Bash(grep:*)"
           prompt: |
             You are a READ-ONLY data investigator running headless in CI for the LeoSource
             Insurance Telegram group. A teammate (${{ env.FROM }}) asked a question that needs
@@ -157,6 +167,11 @@ jobs:
                 Sheety submitted·matched·unmatched counts + ClickFlare revenue. If the
                 question asks WHICH / WHO / clients / names / emails, it also appends an
                 exact per-client roster. This is the AUTHORITATIVE sales tool.
+            • node scripts/ad-report.mjs               (window + intent read from the message env)
+                "Top keywords / campaigns driving leads (or sales)" — ranks the Boberdoo
+                campaign_id / ad_id / keyword fields over a window. Add "sales/sold" to the
+                window for matched-only. AUTHORITATIVE for keyword/campaign rankings; quote
+                it verbatim. (Boberdoo is the only source of these fields.)
             • node scripts/lead-reconcile-report.mjs
                 "Why N in Boberdoo but M in ClickFlare?" — 3-way diff bucketed into
                 cpid-fallback / no-click_id / genuine-miss, plus Google-Ads postback fails.
@@ -180,17 +195,22 @@ jobs:
               Sheety DOES carry the full clickId, the reconciled boberdooStatus, and txid.
             • click_id ≠ cpid (cpid is ClickFlare's CampaignID, not a click id) — expected.
             • U65 phone-call targets pay $0 by design — $0 there does NOT mean "no conversion".
+            • Google-Ads attribution lives in Boberdoo custom fields campaign_id / ad_id /
+              keyword (only on leads from 2026-06-29 onward; only Boberdoo has them). For
+              RANKINGS use ad-report.mjs; for ONE lead's campaign/keyword use lead-check-api.
 
             ── METHOD:
             1. If the message has pasted ids, run lookup.mjs on them FIRST.
             2. For ANY question about sales / revenue / "how many sold" / "which clients /
                who / names / emails", run `node scripts/sales-report.mjs` and quote its
                numbers and client roster EXACTLY. NEVER hand-count conversions, sum payouts,
-               or assemble a client list yourself — sales-report.mjs is authoritative and its
-               output is already Telegram-ready (you may relay it almost verbatim).
-            3. Otherwise choose the tool(s) that answer the question; run them; read the output.
-            4. If two systems disagree, say so and explain the gap (lead-reconcile-report).
-            5. NEVER answer "I can't query that" — you have the tools and credentials above. If
+               or assemble a client list yourself — sales-report.mjs is authoritative.
+            3. For "top keywords / campaigns / which keyword(s) / which campaign(s) driving
+               leads or sales", run `node scripts/ad-report.mjs` and quote it EXACTLY — never
+               tally keywords yourself. For ONE lead's campaign/keyword, run lead-check-api.mjs.
+            4. Otherwise choose the tool(s) that answer the question; run them; read the output.
+            5. If two systems disagree, say so and explain the gap (lead-reconcile-report).
+            6. NEVER answer "I can't query that" — you have the tools and credentials above. If
                a tool errors, say which system failed and what you DID learn; never invent data.
 
             ── OUTPUT: write a SHORT, plain-text answer (no markdown headers, Telegram-friendly,

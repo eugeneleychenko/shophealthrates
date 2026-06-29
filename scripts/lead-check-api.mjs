@@ -77,10 +77,13 @@ const tfState = (d) => (d.trusted_form_url ? '✅ ' + String(d.trusted_form_url)
 function describe(L) {
   const d = dataOf(L);
   const core = ['first_name', 'last_name', 'email', 'primary_phone', 'zip'].filter((k) => d[k]).length;
+  // Google-Ads attribution (Boberdoo custom fields, present on leads from 2026-06-29).
+  const ad = [d.campaign_id && `campaign=${d.campaign_id}`, d.ad_id && `ad=${d.ad_id}`, d.keyword && `kw="${d.keyword}"`].filter(Boolean).join(' · ');
   return [
     `Lead ${L.lead_id} · ${L.lead_date} CT · ${L.lead_status}`,
     `  TrustedForm: ${tfState(d)}`,
     `  src=${d.src || '?'} · sub_id=${d.sub_id ? 'present' : '—'} · core ${core}/5 · TCPA=${d.tcpa_consent || '—'} · LeadiD=${d.leadid_token ? 'present' : '—'}`,
+    ...(ad ? [`  ${ad}`] : []),
   ].join('\n');
 }
 

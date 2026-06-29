@@ -48,7 +48,7 @@ Never commit code that drops a tracking block.
 ├── js/                     # jquery-3.6.0.min.js, bookmarkscroll.js
 ├── images/                 # webp/png/svg assets
 ├── api/                    # Vercel serverless functions
-│   ├── telegram.js         # Telegram webhook: /change /ask /ringba /diagnose /check /sales /lookup /investigate; @mention questions → investigate-by-default
+│   ├── telegram.js         # Telegram webhook: /change /ask /ringba /diagnose /check /sales /lookup /investigate /keywords; @mention questions → investigate-by-default
 │   ├── log-lead.js         # Logs each lead to Google Sheet (Sheety) + missing-click_id alert
 │   └── daily-summary.js    # 9am ET cron: daily lead summary + ClickFlare health check
 ├── scripts/                # call-check-api.mjs, clickflare-api.mjs, sales-report.mjs, lookup.mjs, ringba-totp.js (not deployed)
