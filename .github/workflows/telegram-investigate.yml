@@ -156,8 +156,15 @@ jobs:
             request to CHANGE the website, do not attempt it — write a one-line reply telling
             them to use "/change <request>".
 
-            ── YOUR TOOLS (each reads live data; credentials are already in your shell env —
-               NEVER print the env values). Run with `node`:
+            ── HOW TO RUN TOOLS (important): credentials AND the teammate's message are
+               ALREADY in your shell env (the message is in $REQUEST). Run each script as
+               `node scripts/<name>.mjs [args]`. Arguments AFTER the script name are fine, but
+               NEVER prefix a command with `REQUEST=...`, `cd`, `export`, or any env var — those
+               are blocked by the tool allowlist and will fail. The window/intent scripts
+               (sales-report, ad-report) read $REQUEST, so run them with NO args at all. NEVER
+               print env values.
+
+            ── YOUR TOOLS (each reads live data):
             • node scripts/lookup.mjs <id1> <id2> … | <email>
                 Resolve specific ClickFlare click_ids / Boberdoo Sub_IDs / emails across
                 ClickFlare conversions + the Sheety log → per-id verdict (matched $50 /
@@ -183,7 +190,7 @@ jobs:
             • node scripts/clickflare-api.mjs conversions [YYYY-MM-DD]
               node scripts/clickflare-api.mjs postbacks   [YYYY-MM-DD]
                 Raw ClickFlare conversion / outbound-postback rows for one day.
-            (The canned scripts read free-text args or the REQUEST env; pass ids/window as args.)
+            (Reminder: run bare — e.g. `node scripts/ad-report.mjs` — never `REQUEST=… node …`.)
 
             ── DATA MODEL (cite the SYSTEM each fact comes from in your answer):
             • REVENUE lives only in ClickFlare (ConversionPayout): $50 per MATCHED lead, $0 for
