@@ -174,11 +174,11 @@ jobs:
                 Sheety submitted·matched·unmatched counts + ClickFlare revenue. If the
                 question asks WHICH / WHO / clients / names / emails, it also appends an
                 exact per-client roster. This is the AUTHORITATIVE sales tool.
-            • node scripts/ad-report.mjs               (window + intent read from the message env)
-                "Top keywords / campaigns driving leads (or sales)" — ranks the Boberdoo
-                campaign_id / ad_id / keyword fields over a window. Add "sales/sold" to the
-                window for matched-only. AUTHORITATIVE for keyword/campaign rankings; quote
-                it verbatim. (Boberdoo is the only source of these fields.)
+            • node scripts/ad-report.mjs               (window read from the message env)
+                "Keyword/campaign performance" — per keyword & per campaign_id: LEADS, SOLD
+                (Matched) and the sell-through RATE %, over a window. AUTHORITATIVE for any
+                keyword/campaign question incl. conversion rates; quote it verbatim.
+                (Boberdoo is the only source of these fields.)
             • node scripts/lead-reconcile-report.mjs
                 "Why N in Boberdoo but M in ClickFlare?" — 3-way diff bucketed into
                 cpid-fallback / no-click_id / genuine-miss, plus Google-Ads postback fails.
@@ -212,9 +212,10 @@ jobs:
                who / names / emails", run `node scripts/sales-report.mjs` and quote its
                numbers and client roster EXACTLY. NEVER hand-count conversions, sum payouts,
                or assemble a client list yourself — sales-report.mjs is authoritative.
-            3. For "top keywords / campaigns / which keyword(s) / which campaign(s) driving
-               leads or sales", run `node scripts/ad-report.mjs` and quote it EXACTLY — never
-               tally keywords yourself. For ONE lead's campaign/keyword, run lead-check-api.mjs.
+            3. For keyword/campaign questions — "top keywords/campaigns", "which keyword
+               converts best", "sales RATE / conversion rate by keyword or campaign" — run
+               `node scripts/ad-report.mjs` and quote it EXACTLY; never tally yourself. For
+               ONE lead's campaign/keyword, run lead-check-api.mjs.
             4. Otherwise choose the tool(s) that answer the question; run them; read the output.
             5. If two systems disagree, say so and explain the gap (lead-reconcile-report).
             6. NEVER answer "I can't query that" — you have the tools and credentials above. If

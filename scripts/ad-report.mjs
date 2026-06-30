@@ -74,7 +74,6 @@ const ymd = (d) => d.toISOString().slice(0, 10);
 (async () => {
   await setupProxy();
   const W = parseWindow(REQUEST);
-  const wantMatched = /\b(sale|sales|sold|matched|revenue|sell|selling|buyer|buyers)\b/i.test(REQUEST);
 
   // ceiling id from the date listing (the listing omits our src but bounds the range)
   const now = new Date(), start = new Date(now - 2 * 86400000), end = new Date(now.getTime() + 86400000);
@@ -104,37 +103,41 @@ const ymd = (d) => d.toISOString().slice(0, 10);
     if (batch.length && batchMax < W.startDay) { stoppedByTime = true; break; }   // fully past the window
   }
 
-  const matchedCount = ours.filter((L) => /matched/i.test(L.lead_status || '')).length;
-  const pool = wantMatched ? ours.filter((L) => /matched/i.test(L.lead_status || '')) : ours;
-  const kw = new Map(), camp = new Map();
+  // Tally leads + sold (lead_status Matched) per keyword and per campaign → sell-rate.
+  const isMatched = (X) => /matched/i.test(X.lead_status || '');
+  const totalSold = ours.filter(isMatched).length;
+  const overall = ours.length ? Math.round((totalSold / ours.length) * 100) : 0;
+  const kw = new Map(), camp = new Map();   // key → { leads, sold }
   let withKw = 0;
-  for (const L of pool) {
-    const d = dataOf(L);
-    const k = (d.keyword || '').trim().toLowerCase(); if (k) { kw.set(k, (kw.get(k) || 0) + 1); withKw++; }
-    const c = (d.campaign_id || '').toString().trim(); if (c) camp.set(c, (camp.get(c) || 0) + 1);
+  const bump = (mp, key, sold) => { const g = mp.get(key) || { leads: 0, sold: 0 }; g.leads++; if (sold) g.sold++; mp.set(key, g); };
+  for (const X of ours) {
+    const d = dataOf(X), sold = isMatched(X);
+    const k = (d.keyword || '').trim().toLowerCase(); if (k) { bump(kw, k, sold); withKw++; }
+    const c = (d.campaign_id || '').toString().trim(); if (c) bump(camp, c, sold);
   }
-  const top = (mp, n) => [...mp.entries()].sort((a, b) => b[1] - a[1]).slice(0, n);
+  const rate = (g) => (g.leads ? Math.round((g.sold / g.leads) * 100) : 0);
+  // rank by sold (volume of sales), then by leads — high-sample rows surface first.
+  const top = (mp, n) => [...mp.entries()].sort((a, b) => b[1].sold - a[1].sold || b[1].leads - a[1].leads).slice(0, n);
 
-  const scope = wantMatched ? 'sold/matched' : 'all leads';
   const L = [];
-  L.push(`🔎 Ad attribution · ${W.label} · ${scope}`);
+  L.push(`🔎 Keyword/campaign performance · ${W.label}`);
   L.push('—');
-  L.push(`${pool.length} ${wantMatched ? 'sold' : 'lead'}${pool.length === 1 ? '' : 's'} counted${wantMatched ? '' : ` (${matchedCount} matched)`} · ${withKw} had a keyword`);
+  L.push(`${ours.length} lead${ours.length === 1 ? '' : 's'} · ${totalSold} sold · ${overall}% overall  (${withKw} had a keyword)`);
   // coverage honesty: if the scan hit its cap before reaching the window start.
   if (!stoppedByTime && minDate !== '9999-99-99' && minDate > W.startDay) {
     L.push(`⚠️ scanned the most recent ${scanned} leads (back to ${minDate}); window starts ${W.startDay} — counts are partial. Ask "today" for an exact day, or I can log these to Sheety for fast full-range reports.`);
   }
-  if (!pool.length) { L.push('— (no leads in this window / scan)'); writeReply(L.join('\n')); console.log('----- REPLY -----\n' + L.join('\n')); return; }
+  if (!ours.length) { L.push('— (no our-source leads in this window / scan)'); writeReply(L.join('\n')); console.log('----- REPLY -----\n' + L.join('\n')); return; }
   L.push('—');
-  L.push('Top keywords:');
-  top(kw, 10).forEach(([k, c], i) => L.push(`${i + 1}. ${k} — ${c}`));
-  if (!kw.size) L.push('  (none had a keyword — ad params may be empty)');
+  L.push('Top keywords (leads · sold · rate):');
+  top(kw, 10).forEach(([k, g], i) => L.push(`${i + 1}. ${k} — ${g.leads} · ${g.sold} · ${rate(g)}%`));
+  if (!kw.size) L.push('  (no leads carried a keyword — only leads from 2026-06-29 onward do)');
   L.push('—');
-  L.push('Top campaigns (campaign_id):');
-  top(camp, 8).forEach(([c, n], i) => L.push(`${i + 1}. ${c} — ${n}`));
-  if (!camp.size) L.push('  (none had a campaign_id)');
+  L.push('Top campaigns (campaign_id · leads · sold · rate):');
+  top(camp, 8).forEach(([c, g], i) => L.push(`${i + 1}. ${c} — ${g.leads} · ${g.sold} · ${rate(g)}%`));
+  if (!camp.size) L.push('  (no campaign_id on leads)');
   L.push('—');
-  L.push('Source: Boberdoo getLeadDetails (campaign_id/ad_id/keyword). Empty = lead carried no ad params.');
+  L.push('Rate = sold/leads (sold = Boberdoo lead_status Matched). Source: Boberdoo getLeadDetails by keyword/campaign_id.');
 
   writeReply(L.join('\n'));
   console.log('----- REPLY -----\n' + L.join('\n'));
