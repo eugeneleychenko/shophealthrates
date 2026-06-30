@@ -115,29 +115,30 @@ const ymd = (d) => d.toISOString().slice(0, 10);
     const k = (d.keyword || '').trim().toLowerCase(); if (k) { bump(kw, k, sold); withKw++; }
     const c = (d.campaign_id || '').toString().trim(); if (c) bump(camp, c, sold);
   }
-  const rate = (g) => (g.leads ? Math.round((g.sold / g.leads) * 100) : 0);
+  const share = (g) => (totalSold ? Math.round((g.sold / totalSold) * 100) : 0);
   // rank by sold (volume of sales), then by leads — high-sample rows surface first.
   const top = (mp, n) => [...mp.entries()].sort((a, b) => b[1].sold - a[1].sold || b[1].leads - a[1].leads).slice(0, n);
 
   const L = [];
   L.push(`🔎 Keyword/campaign performance · ${W.label}`);
   L.push('—');
-  L.push(`${ours.length} lead${ours.length === 1 ? '' : 's'} · ${totalSold} sold · ${overall}% overall  (${withKw} had a keyword)`);
+  L.push(`${ours.length} lead${ours.length === 1 ? '' : 's'} · ${totalSold} sold · ${overall}% sell-through  (${withKw} had a keyword)`);
+  L.push("Almost every lead matches a buyer, so the % below is SHARE of total sales (not sell-through).");
   // coverage honesty: if the scan hit its cap before reaching the window start.
   if (!stoppedByTime && minDate !== '9999-99-99' && minDate > W.startDay) {
     L.push(`⚠️ scanned the most recent ${scanned} leads (back to ${minDate}); window starts ${W.startDay} — counts are partial. Ask "today" for an exact day, or I can log these to Sheety for fast full-range reports.`);
   }
   if (!ours.length) { L.push('— (no our-source leads in this window / scan)'); writeReply(L.join('\n')); console.log('----- REPLY -----\n' + L.join('\n')); return; }
   L.push('—');
-  L.push('Top keywords (leads · sold · rate):');
-  top(kw, 10).forEach(([k, g], i) => L.push(`${i + 1}. ${k} — ${g.leads} · ${g.sold} · ${rate(g)}%`));
+  L.push('Top keywords (leads · sold · share of sales):');
+  top(kw, 10).forEach(([k, g], i) => L.push(`${i + 1}. ${k} — ${g.leads} · ${g.sold} · ${share(g)}%`));
   if (!kw.size) L.push('  (no leads carried a keyword — only leads from 2026-06-29 onward do)');
   L.push('—');
-  L.push('Top campaigns (campaign_id · leads · sold · rate):');
-  top(camp, 8).forEach(([c, g], i) => L.push(`${i + 1}. ${c} — ${g.leads} · ${g.sold} · ${rate(g)}%`));
+  L.push('Top campaigns (campaign_id · leads · sold · share):');
+  top(camp, 8).forEach(([c, g], i) => L.push(`${i + 1}. ${c} — ${g.leads} · ${g.sold} · ${share(g)}%`));
   if (!camp.size) L.push('  (no campaign_id on leads)');
   L.push('—');
-  L.push('Rate = sold/leads (sold = Boberdoo lead_status Matched). Source: Boberdoo getLeadDetails by keyword/campaign_id.');
+  L.push(`Share = % of all ${totalSold} sales. Sell-through (sold/leads) is ~${overall}% — almost every lead matches a buyer. Source: Boberdoo getLeadDetails.`);
 
   writeReply(L.join('\n'));
   console.log('----- REPLY -----\n' + L.join('\n'));

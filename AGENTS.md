@@ -74,7 +74,7 @@ The bot is `@leosource_bot` in the "Leosource/ Integrations" group; the webhook 
 |---|---|---|
 | `/help` | List all commands | local (telegram.js) |
 | `/sales [today·week·30d·date]` | Sold count + ClickFlare revenue for a window; add "which clients" for the per-buyer roster | telegram-sales.yml → sales-report.mjs |
-| `/keywords [window]` (`/ads`) | Keyword/campaign performance — leads · sold · sell-rate% per keyword & campaign_id | telegram-investigate.yml mode=ad → ad-report.mjs |
+| `/keywords [window]` (`/ads`) | Keyword/campaign performance — leads · sold · share-of-sales% per keyword & campaign_id (sell-through is ~100%) | telegram-investigate.yml mode=ad → ad-report.mjs |
 | `/lookup <ids·email>` | Per-id verdict — is this click_id/Sub_ID/email matched ($50) or not | telegram-investigate.yml mode=lookup → lookup.mjs |
 | `/investigate <q>` (`/data`) | Force the LLM data investigator | telegram-investigate.yml mode=llm |
 | `/reconcile` (`/gap`) | Categorized Boberdoo↔ClickFlare count-gap verdict | telegram-reconcile.yml → lead-reconcile-report.mjs |

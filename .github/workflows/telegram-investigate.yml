@@ -176,9 +176,9 @@ jobs:
                 exact per-client roster. This is the AUTHORITATIVE sales tool.
             • node scripts/ad-report.mjs               (window read from the message env)
                 "Keyword/campaign performance" — per keyword & per campaign_id: LEADS, SOLD
-                (Matched) and the sell-through RATE %, over a window. AUTHORITATIVE for any
-                keyword/campaign question incl. conversion rates; quote it verbatim.
-                (Boberdoo is the only source of these fields.)
+                (Matched) and SHARE of sales %, over a window (overall sell-through is ~100%
+                — almost every lead matches). AUTHORITATIVE for any keyword/campaign question
+                incl. rates/shares; quote it verbatim. (Boberdoo is the only source.)
             • node scripts/lead-reconcile-report.mjs
                 "Why N in Boberdoo but M in ClickFlare?" — 3-way diff bucketed into
                 cpid-fallback / no-click_id / genuine-miss, plus Google-Ads postback fails.
