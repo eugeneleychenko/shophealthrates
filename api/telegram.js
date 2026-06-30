@@ -538,7 +538,7 @@ async function handleHelp(chatId) {
     "",
     "📊 Data & reports",
     '/sales [today·week·30d·date] — sold count + revenue; add "clients" for the buyer list',
-    "/keywords [today·week·date] — keyword/campaign performance: leads · sold · share of sales%  (alias /ads)",
+    "/keywords [today·week·date] — top keywords & campaigns by sales: leads · sold · % share of sales  (alias /ads)",
     "/lookup <id·email> — is this click_id / Sub_ID / email a sale? ($50 = matched)",
     "/reconcile — why Boberdoo vs ClickFlare counts differ  (alias /gap)",
     "/check [phone] — did a phone call convert end-to-end?  (aliases /call /conversion)",
