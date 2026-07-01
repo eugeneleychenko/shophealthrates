@@ -161,6 +161,7 @@ Operational runbooks (not deployed; `*.md` excluded by `.vercelignore`):
 - [docs/telegram-agent.md](docs/telegram-agent.md) — Claude Code web remote management, the `/change`·`/ask` deploy agent, and `/ringba` MFA.
 - [docs/lead-logging.md](docs/lead-logging.md) — Lead logging to Google Sheet, `/diagnose`, alerts, daily summary, API access gaps.
 - [docs/call-check.md](docs/call-check.md) — `/check` call-conversion verification (the 5-hop chain) + reply format.
+- [docs/close-rate-tracking.md](docs/close-rate-tracking.md) — Enrollment/close-rate reporting: "sale" = Boberdoo CRM `Closed` (not Matched); no CRM-status read API; the Boberdoo report → Google Sheet plan for Misha.
 
 ## Commit Guidelines
 
