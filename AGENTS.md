@@ -50,6 +50,7 @@ Never commit code that drops a tracking block.
 ├── api/                    # Vercel serverless functions
 │   ├── telegram.js         # Telegram webhook: /help /change /ask /ringba /diagnose /check /sales /lookup /investigate /keywords; @mention questions → investigate-by-default (see Telegram Bot Commands)
 │   ├── log-lead.js         # Logs each lead to Google Sheet (Sheety) + missing-click_id alert
+│   ├── enrollment.js       # Sale/enrollment intake (Convoso webhook et al.): resolves truncated Sub_ID/email → full click_id, dedupes, logs event=enrollment + Telegram ping; ClickFlare ct=sale fire behind ENROLL_FIRE_CF
 │   └── daily-summary.js    # 9am ET cron: daily lead summary + ClickFlare health check
 ├── scripts/                # call-check-api.mjs, clickflare-api.mjs, sales-report.mjs, lookup.mjs, ringba-totp.js (not deployed)
 ├── api_docs/               # Vendor API notes (not deployed)
