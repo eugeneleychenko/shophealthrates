@@ -1,7 +1,8 @@
 // Enrollment (sale/"Closed") intake — the single front door for enrollment signals:
 //   • Convoso "Sale" disposition webhook (Workflow → Convoso Connect POST), src=convoso
 //   • Boberdoo webhook 57 repoint (GET, truncated Sub_ID), src=boberdoo   [future]
-//   • Manual /enroll Telegram command (server-to-server), src=manual      [future]
+// Deliberately NO manual/Telegram path for marking sales (decision 2026-07-02):
+// enrollments enter ONLY via system webhooks so chat can't create/pollute sale data.
 //
 // WHY this exists instead of pointing dialers straight at ClickFlare: upstream systems
 // only carry Boberdoo's Sub_ID, which is the ClickFlare click_id TRUNCATED to 30 chars
