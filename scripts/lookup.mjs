@@ -1,9 +1,13 @@
 #!/usr/bin/env node
 // Look up specific leads/sales by ClickFlare click_id, Boberdoo Sub_ID (the 30-char
-// truncated click_id), or email — across ClickFlare conversions + the Sheety log.
-// Backs the /lookup command AND is the investigate agent's first tool. Answers
-// "do you see these sales in boberdoo?" with a per-id matched/unmatched/$ verdict
-// instead of a generic aggregate.
+// truncated click_id), email — or FIRST NAME (`name:kevin`) — across ClickFlare
+// conversions + the Sheety log. Backs the /lookup command AND is the investigate
+// agent's first tool. Answers "do you see these sales in boberdoo?" with a per-id
+// matched/unmatched/$ verdict instead of a generic aggregate. A name resolves via
+// the `name=` field both log-lead and enrollment rows carry in rawQuery (added after
+// the 2026-07-13 "what's Kevin's phone number?" miss) and reports the row's email /
+// phone last-4 / click_id, then the click verdict; the FULL phone lives only in
+// Boberdoo (chase with lead-check-api.mjs <email>).
 //
 // WHY ClickFlare + Sheety (not Boberdoo): matched status + revenue live in ClickFlare
 // ConversionPayout ($50 matched / $0 unmatched); Sheety carries the full clickId and
@@ -13,9 +17,9 @@
 //
 // AUTH (env, never printed): SHEETY_URL, CLICKFLARE_USERNAME / CLICKFLARE_PASSWORD,
 //   CLICKFLARE_ORG_ID (optional). CONFIG: LOOKBACK_DAYS (default 45).
-// INPUT: ids/emails from argv (`node scripts/lookup.mjs <id> <id>`) or REQUEST env.
-// Writes a Telegram-ready answer to _agent_inbox/REPLY.txt.
-// Exit: 0 = wrote a verdict · 3 = no id/email tokens (let the LLM handle it) ·
+// INPUT: ids/emails/name: tokens from argv (`node scripts/lookup.mjs <id> name:kevin`)
+// or REQUEST env. Writes a Telegram-ready answer to _agent_inbox/REPLY.txt.
+// Exit: 0 = wrote a verdict · 3 = no id/email/name tokens (let the LLM handle it) ·
 //       1 = both data sources failed (let the LLM fallback try, incl. live Boberdoo).
 
 import fs from 'node:fs';
@@ -37,13 +41,15 @@ const isPhone = (i) => (i.ConversionTransaction || '').startsWith('RGB');
 // Both a 30-char Sub_ID and a 36-char click_id share their first 30 literal chars.
 const key30 = (s) => String(s || '').toLowerCase().slice(0, 30);
 
-// Extract id (UUID or 30-char-truncated UUID) and email tokens from the free text.
+// Extract id (UUID or 30-char-truncated UUID), email and name: tokens from the free text.
 const ID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{0,12}/gi;
 const EMAIL_RE = /[\w.+-]+@[\w-]+\.[\w.-]+/g;
+const NAME_RE = /(?:^|\s)name:\s*([a-z][a-z'’-]{1,29})/gi;
 const ids = [...new Set((RAW.match(ID_RE) || []).map((s) => s.trim()))];
 const emails = [...new Set((RAW.match(EMAIL_RE) || []).map((s) => s.toLowerCase()))];
+const names = [...new Set([...RAW.matchAll(NAME_RE)].map((m) => m[1].toLowerCase()))];
 
-if (!ids.length && !emails.length) process.exit(3);   // no tokens → let the LLM handle it
+if (!ids.length && !emails.length && !names.length) process.exit(3);   // no tokens → let the LLM handle it
 
 async function getSheet() {
   if (!SHEETY_URL) throw new Error('SHEETY_URL not set');
@@ -51,19 +57,26 @@ async function getSheet() {
   if (!res.ok) throw new Error(`Sheety GET ${res.status}`);
   const j = await res.json();
   const k = Object.keys(j).find((x) => Array.isArray(j[x]));
-  return (k ? j[k] : []).filter((r) => r.event === 'lead_submitted');
+  return k ? j[k] : [];
 }
+
+// Both log-lead and enrollment rows carry "name=<first name>" (and the enrollment
+// row "phone=***<last4>") inside their free-form rawQuery column.
+const nameOf = (r) => { const m = String(r.rawQuery || '').match(/(?:^|&)name=([^&]*)/i); return m ? m[1].trim().toLowerCase() : ''; };
+const last4Of = (r) => { const m = String(r.rawQuery || '').match(/phone=\**(\d{4})/i); return m ? m[1] : ''; };
 
 const short = (s) => (s.length > 34 ? s.slice(0, 30) + '…' : s);
 
 (async () => {
-  let cf = [], rows = [], cfErr = null, shErr = null;
+  let cf = [], all = [], cfErr = null, shErr = null;
   try { cf = await allEventLogs({ days: LOOKBACK_DAYS, eventType: 'conversion' }); } catch (e) { cfErr = e.message; }
-  try { rows = await getSheet(); } catch (e) { shErr = e.message; }
+  try { all = await getSheet(); } catch (e) { shErr = e.message; }
   if (cfErr && shErr) {   // hard failure on both → let the LLM fallback try (incl. live Boberdoo)
     console.error(`lookup: both sources failed (ClickFlare: ${cfErr}; Sheety: ${shErr})`);
     process.exit(1);
   }
+  const rows = all.filter((r) => r.event === 'lead_submitted');
+  const enrolls = all.filter((r) => r.event === 'enrollment');
 
   // Build the target list: each pasted id, plus each email resolved to its clickId.
   const targets = [];
@@ -71,6 +84,28 @@ const short = (s) => (s.length > 34 ? s.slice(0, 30) + '…' : s);
   for (const em of emails) {
     const r = rows.find((x) => (x.email || '').toLowerCase() === em);
     targets.push({ label: em, key: r && r.clickId ? key30(r.clickId) : null, miss: r ? 'no click_id on its Sheety row' : `no Sheety row (last ${LOOKBACK_DAYS}d)` });
+  }
+
+  // Resolve name: tokens via the Sheety name= field — enrollment rows first (that's
+  // what a "who is <name>?" right after a sale ping means), then lead rows, newest
+  // first. Each hit reports its identifiers and also joins the click-verdict list.
+  const nameLines = [];
+  for (const nm of names) {
+    const hits = [...enrolls, ...rows].filter((r) => nameOf(r) === nm)
+      .sort((a, b) => String(b.timestamp || '').localeCompare(String(a.timestamp || '')));
+    if (!hits.length) { nameLines.push(`❓ ${nm} — no lead or enrollment row with that first name in the Sheety log`); continue; }
+    for (const h of hits.slice(0, 3)) {
+      const what = h.event === 'enrollment' ? '🎉 enrollment (sale)' : 'lead';
+      nameLines.push([
+        `${nm} — ${what} ${String(h.timestamp || '').slice(0, 16)} [Sheety]`,
+        h.email ? `email ${h.email}` : '',
+        last4Of(h) ? `phone ***${last4Of(h)}` : '',
+        h.clickId ? `click_id ${short(String(h.clickId))}` : 'no click_id',
+      ].filter(Boolean).join(' · '));
+      if (h.clickId && !targets.some((t) => t.key === key30(h.clickId))) {
+        targets.push({ label: `${nm}'s click`, key: key30(h.clickId) });
+      }
+    }
   }
   const shown = targets.slice(0, MAX_IDS);
 
@@ -101,11 +136,12 @@ const short = (s) => (s.length > 34 ? s.slice(0, 30) + '…' : s);
     }
   }
 
-  const L = [`🔎 Lookup · ${targets.length} id${targets.length === 1 ? '' : 's'}`, '—', ...lines];
+  const L = [`🔎 Lookup · ${targets.length || names.length} id${(targets.length || names.length) === 1 ? '' : 's'}`, '—', ...nameLines, ...lines];
   if (targets.length > shown.length) L.push(`…(+${targets.length - shown.length} more — narrow the list)`);
   L.push('—');
   L.push("$50 = matched (sold to a buyer) · $0 = unmatched. Sub_ID = click_id's first 30 chars.");
   L.push('Source: ClickFlare ConversionPayout + Sheety boberdooStatus (Boberdoo read API has no per-lead price).');
+  if (names.length) L.push('Sheety keeps phone LAST-4 only — for the full number run lead-check-api.mjs <email> (Boberdoo).');
   if (cfErr) L.push(`⚠️ ClickFlare unavailable (${cfErr})`);
   if (shErr) L.push(`⚠️ Sheety unavailable (${shErr})`);
 

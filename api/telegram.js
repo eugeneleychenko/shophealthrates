@@ -46,6 +46,15 @@ module.exports = async (req, res) => {
   const text = msg.text || msg.caption || "";
   const botUser = process.env.TELEGRAM_BOT_USERNAME || "";
 
+  // If this message is a Telegram reply (e.g. to one of the bot's own enrollment
+  // pings), carry the quoted text downstream — the investigate agent only ever
+  // sees this single message, so "what's Kevin's number?" said in reply to a
+  // sale ping is unanswerable without the ping's content (2026-07-13 miss).
+  const replyTo = msg.reply_to_message;
+  const replyText = ((replyTo && (replyTo.text || replyTo.caption)) || "").trim();
+  const withReplyContext = (q) =>
+    replyText && q ? q + '\n\n[Context — sent as a reply to this earlier message: "' + replyText.slice(0, 500) + '"]' : q;
+
   // How was the bot addressed? This sets the intent hint passed downstream:
   //   /change <edit>   → make a code change + deploy
   //   /ask <question>  → answer a question, no code changes, no deploy
@@ -109,7 +118,7 @@ module.exports = async (req, res) => {
     const botUserName = process.env.TELEGRAM_BOT_USERNAME || "";
     const arg = text.replace(/^\/lookup(@\w+)?/i, "").split("@" + botUserName).join("").trim();
     const from = (msg.from && (msg.from.username || msg.from.first_name)) || "client";
-    await handleInvestigate(chatId, msg.message_id, arg, from, "lookup");
+    await handleInvestigate(chatId, msg.message_id, withReplyContext(arg), from, "lookup");
     return res.status(200).send("lookup handled");
   }
 
@@ -119,7 +128,7 @@ module.exports = async (req, res) => {
     const botUserName = process.env.TELEGRAM_BOT_USERNAME || "";
     const arg = text.replace(/^\/(investigate|data)(@\w+)?/i, "").split("@" + botUserName).join("").trim();
     const from = (msg.from && (msg.from.username || msg.from.first_name)) || "client";
-    await handleInvestigate(chatId, msg.message_id, arg, from, "llm");
+    await handleInvestigate(chatId, msg.message_id, withReplyContext(arg), from, "llm");
     return res.status(200).send("investigate handled");
   }
 
@@ -150,7 +159,7 @@ module.exports = async (req, res) => {
     const q = text.split("@" + botUser).join("").trim();
     if (q) {
       const from = (msg.from && (msg.from.username || msg.from.first_name)) || "client";
-      await handleInvestigate(chatId, msg.message_id, q, from, "llm");
+      await handleInvestigate(chatId, msg.message_id, withReplyContext(q), from, "llm");
       return res.status(200).send("investigate (auto) handled");
     }
   }
@@ -292,12 +301,14 @@ async function cancelAgentRuns() {
 // CONSERVATIVE: requires an edit verb AND a UI/site noun, and never a question — so a
 // data ask with an edit-ish word ("add up the sales", "did sales increase?") is NOT
 // treated as a change and reaches the investigator. Explicit /change is the reliable
-// way to request an edit regardless.
+// way to request an edit regardless. (build/create/design verbs added after the
+// 2026-07-13 "Build me a sub-page" @mention was wrongly sent to the investigator;
+// the investigate workflow also hands off to the change agent as a safety net.)
 function isChangeRequest(text) {
   const t = text.toLowerCase().trim();
   if (/\?\s*$/.test(t)) return false;                       // a question is never a change
-  const verb = /\b(make|change|add|remove|delete|move|fix|update|set|replace|rename|swap|edit|tweak|adjust|hide|redirect|reword|rewrite|capitalize|bold|underline|resize|recolor|re-?color|shrink|enlarge|bigger|smaller)\b/;
-  const noun = /\b(headline|title|button|link|text|copy|color|colour|font|image|logo|page|header|footer|form|field|number|phone|cta|banner|section|quiz|step|homepage|home page|site|website|word|wording|spelling|typo|background|menu|nav|css|html|style)\b/;
+  const verb = /\b(make|build|rebuild|create|design|redesign|launch|publish|generate|change|add|remove|delete|move|fix|update|set|replace|rename|swap|edit|tweak|adjust|hide|redirect|reword|rewrite|capitalize|bold|underline|resize|recolor|re-?color|shrink|enlarge|bigger|smaller)\b/;
+  const noun = /\b(headline|title|button|link|text|copy|color|colour|font|image|logo|page|subpage|lander|header|footer|form|field|number|phone|cta|banner|section|quiz|step|homepage|home page|site|website|word|wording|spelling|typo|background|menu|nav|css|html|style)\b/;
   return verb.test(t) && noun.test(t);
 }
 
@@ -534,7 +545,7 @@ async function handleHelp(chatId) {
   const msg = [
     "🤖 LeoSource bot — commands",
     "",
-    "Tip: just @mention me with any question and I'll investigate the live systems (Boberdoo · ClickFlare · Sheety · Ringba) and answer. Or use a command for an instant, exact report:",
+    "Tip: just @mention me with any question and I'll investigate the live systems (Boberdoo · ClickFlare · Sheety · Ringba) and answer — a site-change ask is routed to the code agent automatically. Or use a command for an instant, exact report:",
     "",
     "📊 Data & reports",
     '/sales [today·week·30d·date] — sold count + revenue; add "clients" for the buyer list',

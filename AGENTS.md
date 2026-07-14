@@ -76,7 +76,7 @@ The bot is `@leosource_bot` in the "Leosource/ Integrations" group; the webhook 
 | `/help` | List all commands | local (telegram.js) |
 | `/sales [today·week·30d·date]` | Sold count + ClickFlare revenue for a window; add "which clients" for the per-buyer roster | telegram-sales.yml → sales-report.mjs |
 | `/keywords [window]` (`/ads`) | Top keywords & campaigns by sales — per keyword & campaign_id: leads · sold · **% share of sales**. Sell-through is ~100% (almost all leads match), so the % is share, not rate. Fields exist only on leads from 2026-06-29+; wide windows are a partial live Boberdoo scan | telegram-investigate.yml mode=ad → ad-report.mjs |
-| `/lookup <ids·email>` | Per-id verdict — is this click_id/Sub_ID/email matched ($50) or not | telegram-investigate.yml mode=lookup → lookup.mjs |
+| `/lookup <ids·email·name:First>` | Per-id verdict — is this click_id/Sub_ID/email matched ($50) or not; `name:kevin` finds a person's Sheety lead/enrollment row (email · phone last-4 · click_id) | telegram-investigate.yml mode=lookup → lookup.mjs |
 | `/investigate <q>` (`/data`) | Force the LLM data investigator | telegram-investigate.yml mode=llm |
 | `/reconcile` (`/gap`) | Categorized Boberdoo↔ClickFlare count-gap verdict | telegram-reconcile.yml → lead-reconcile-report.mjs |
 | `/check [phone]` (`/call`, `/conversion`) | Verify a phone-call conversion end-to-end (Ringba + ClickFlare) | telegram-call-check.yml → call-check-api.mjs |
@@ -84,7 +84,7 @@ The bot is `@leosource_bot` in the "Leosource/ Integrations" group; the webhook 
 | `/ringba` (`/mfa`) | Current Ringba 2FA (TOTP) code | local (telegram.js) |
 | `/change <edit>` | Edit the website + commit + deploy | telegram-agent.yml |
 | `/ask <q>` (`/q`) | Answer a question about the site/code (no change) | telegram-agent.yml |
-| `@mention <question>` | Investigate-by-default — LLM queries the live systems and answers | telegram-investigate.yml |
+| `@mention <question>` | Investigate-by-default — LLM queries the live systems and answers; a site-change ask is auto-handed to the code agent (never bounced to /change); replying to a bot message carries that message along as context | telegram-investigate.yml |
 | `stop` / `cancel` | Cancel a running `/change` | local (telegram.js) |
 
 ## Protected Tracking Codes — DO NOT MODIFY

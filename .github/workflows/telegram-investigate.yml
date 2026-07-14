@@ -5,6 +5,14 @@ name: Telegram investigate
 # across them — NOT a canned single-system report. READ-ONLY: the agent can run the
 # read scripts + node CLIs, but CANNOT edit code, commit, push, or deploy.
 #
+# If the message turns out to be a SITE-CHANGE request that slipped past the
+# isChangeRequest gate in api/telegram.js, the agent writes the HANDOFF:CHANGE
+# sentinel to REPLY.txt and the separate `handoff` job (the only job here with
+# contents:write) re-dispatches it to the code-change agent (telegram-agent.yml)
+# — the client is never bounced to a slash command. repository_dispatch fired
+# with the default GITHUB_TOKEN is an explicit exception to GitHub's workflow
+# recursion guard, so the dispatch does trigger the change workflow.
+#
 # mode=lookup → run scripts/lookup.mjs only (deterministic /lookup command, instant).
 # mode=llm    → skip the lookup step; claude-code-action investigates with the full
 #               tool catalog (uses lookup.mjs as a tool). This is the default for
@@ -45,6 +53,8 @@ jobs:
     permissions:
       contents: read       # NEVER write — this agent cannot commit or deploy
       id-token: write      # claude-code-action needs OIDC
+    outputs:
+      handoff: ${{ steps.detect.outputs.handoff }}
     env:
       CHAT_ID: ${{ github.event.client_payload.chat_id || github.event.inputs.chat_id }}
       MESSAGE_ID: ${{ github.event.client_payload.message_id || github.event.inputs.message_id || '' }}
@@ -100,7 +110,7 @@ jobs:
           fi
 
       # ── mode=lookup: deterministic id resolver (no LLM). Writes REPLY.txt if it
-      #    finds an id/email; otherwise writes nothing → the LLM step runs.
+      #    finds an id/email/name: token; otherwise writes nothing → the LLM step runs.
       - name: Deterministic lookup (ClickFlare + Sheety)
         if: env.MODE == 'lookup'
         id: lookup
@@ -153,8 +163,10 @@ jobs:
 
             You CANNOT edit code, commit, push, or deploy — and you don't need to. Your only
             job is to INVESTIGATE and write one clear answer. If the message is actually a
-            request to CHANGE the website, do not attempt it — write a one-line reply telling
-            them to use "/change <request>".
+            request to CHANGE the website (build/create/edit/remove something on the site),
+            do NOT attempt it and do NOT tell them to use /change — write exactly the single
+            line HANDOFF:CHANGE as the ONLY content of ./_agent_inbox/REPLY.txt and stop;
+            the workflow hands the original message to the code-change agent automatically.
 
             ── HOW TO RUN TOOLS (important): credentials AND the teammate's message are
                ALREADY in your shell env (the message is in $REQUEST). Run each script as
@@ -165,10 +177,13 @@ jobs:
                print env values.
 
             ── YOUR TOOLS (each reads live data):
-            • node scripts/lookup.mjs <id1> <id2> … | <email>
-                Resolve specific ClickFlare click_ids / Boberdoo Sub_IDs / emails across
-                ClickFlare conversions + the Sheety log → per-id verdict (matched $50 /
-                unmatched $0 / not found). USE THIS FIRST whenever ids are pasted.
+            • node scripts/lookup.mjs <id1> <id2> … | <email> | name:<first name>
+                Resolve specific ClickFlare click_ids / Boberdoo Sub_IDs / emails — or a
+                person's FIRST NAME (e.g. `name:kevin`) via the Sheety lead + enrollment
+                log — across ClickFlare conversions + the Sheety log → per-id verdict
+                (matched $50 / unmatched $0 / not found); a name hit also reports the
+                row's email, phone last-4 and click_id. USE THIS FIRST whenever ids are
+                pasted or a person is referenced by first name.
             • node scripts/sales-report.mjs            (window + intent read from the message env)
                 "How many sales / how much revenue" for today/yesterday/7d/30d/a date:
                 Sheety submitted·matched·unmatched counts + ClickFlare revenue. If the
@@ -205,6 +220,13 @@ jobs:
             • Google-Ads attribution lives in Boberdoo custom fields campaign_id / ad_id /
               keyword (only on leads from 2026-06-29 onward; only Boberdoo has them). For
               RANKINGS use ad-report.mjs; for ONE lead's campaign/keyword use lead-check-api.
+            • The bot's "🎉 Enrollment (SALE)" pings in the chat come from Sheety
+              event=enrollment rows (first name, phone last-4, resolved click_id, email).
+              A question naming a person ("what's Kevin's phone number?"), often sent right
+              after such a ping, IS answerable: `node scripts/lookup.mjs name:kevin` finds
+              the row, then `node scripts/lead-check-api.mjs <their email>` returns the
+              FULL phone from Boberdoo (Sheety keeps last-4 only). Never reply that names
+              can't be searched.
 
             ── METHOD:
             1. If the message has pasted ids, run lookup.mjs on them FIRST.
@@ -226,6 +248,18 @@ jobs:
                supporting facts, citing the system each came from (e.g. "ClickFlare: $50 payout",
                "Boberdoo: Matched", "Sheety: boberdooStatus=matched"). Then stop.
 
+      # The LLM writes HANDOFF:CHANGE when the message is really a site-change request;
+      # the `handoff` job (contents:write) then re-dispatches it to telegram-agent.yml.
+      - name: Detect change-request handoff
+        id: detect
+        if: always()
+        run: |
+          if [ -f _agent_inbox/REPLY.txt ] && [ "$(head -1 _agent_inbox/REPLY.txt | tr -d '\r')" = "HANDOFF:CHANGE" ]; then
+            echo "handoff=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "handoff=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Report result
         if: always()
         env:
@@ -236,6 +270,14 @@ jobs:
           if [ -f _agent_inbox/REPLY.txt ]; then echo "----- REPLY -----"; cat _agent_inbox/REPLY.txt
           else echo "(no REPLY.txt written)"; fi
           echo "======================================================="
+          if [ "${{ steps.detect.outputs.handoff }}" = "true" ]; then
+            echo "Change request detected — the handoff job dispatches the code agent."
+            [ -z "$CHAT_ID" ] && exit 0
+            curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+              -H "Content-Type: application/json" \
+              -d "$(jq -n --arg c "$CHAT_ID" --arg t "🔧 On it — that's a site change, routing it to the code agent now. It will build it and report back here." '{chat_id:$c,text:$t}')" >/dev/null || true
+            exit 0
+          fi
           [ -z "$CHAT_ID" ] && exit 0
           if [ -f _agent_inbox/REPLY.txt ] && [ -s _agent_inbox/REPLY.txt ]; then
             curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
@@ -246,3 +288,32 @@ jobs:
               -H "Content-Type: application/json" \
               -d "$(jq -n --arg c "$CHAT_ID" --arg t "🤔 I couldn't complete that investigation automatically — Eugene will check the run logs." '{chat_id:$c,text:$t}')" >/dev/null || true
           fi
+
+  # Re-dispatch a mis-routed site-change request to the code-change agent
+  # (telegram-agent.yml). Separate job on purpose: it is the ONLY place in this
+  # workflow with contents:write, and it runs no LLM — the investigate job above
+  # stays strictly read-only.
+  handoff:
+    needs: investigate
+    if: needs.investigate.outputs.handoff == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write      # creating a repository_dispatch event requires it
+    env:
+      CHAT_ID: ${{ github.event.client_payload.chat_id || github.event.inputs.chat_id || '' }}
+      MESSAGE_ID: ${{ github.event.client_payload.message_id || github.event.inputs.message_id || '' }}
+      REQUEST: ${{ github.event.client_payload.request || github.event.inputs.request }}
+      FROM: ${{ github.event.client_payload.from || 'manual' }}
+    steps:
+      - name: Dispatch the code-change agent
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          jq -n --arg r "$REQUEST" --arg c "$CHAT_ID" --arg m "$MESSAGE_ID" --arg f "$FROM" \
+            '{event_type:"telegram-change-request", client_payload:{request:$r, mode:"change", chat_id:$c, message_id:$m, from:$f}}' > /tmp/payload.json
+          curl -sf -X POST "https://api.github.com/repos/${{ github.repository }}/dispatches" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            -d @/tmp/payload.json
+          echo "Dispatched telegram-change-request for: $REQUEST"
