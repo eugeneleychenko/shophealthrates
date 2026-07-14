@@ -106,6 +106,10 @@ jobs:
           # Uses your Claude subscription (run `claude setup-token` to mint this),
           # so this doesn't bill per-token against a separate API key.
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # The investigate workflow's handoff job re-dispatches mis-routed change
+          # requests with the default GITHUB_TOKEN, so the run's actor is
+          # github-actions[bot] — allow it or the action refuses to start.
+          allowed_bots: "github-actions"
           prompt: |
             A client (${{ env.FROM }}) sent this message in the Telegram group for
             the static marketing site in this repo. Read AGENTS.md first for full
