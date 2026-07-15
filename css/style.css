@@ -576,6 +576,14 @@ ul.banner_bottom_list li{}
 	background:#16508b;
 	border-radius:50%;
 	}
+.section2 .section1_column_number{
+	width:auto;
+	height:auto;
+	min-width:46px;
+	padding:8px 16px;
+	border-radius:30px;
+	white-space:nowrap;
+	}
 .section1_column_heading{
 	color:#16508b;
 	font-size:26px;
