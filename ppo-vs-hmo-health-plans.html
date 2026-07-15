@@ -1,0 +1,796 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="shortcut icon" type="image/x-icon" href="images/favicon.webp">
+<title>PPO vs. HMO Health Plans - Compare Plans - LeoSource</title>
+<meta name="description" content="Compare PPO plans and HMO plans side-by-side - network flexibility, referrals, and cost. See which PPO health insurance or HMO insurance option fits your budget. Free quote in 2 minutes.">
+<link rel="canonical" href="https://shophealthrates.com/ppo-vs-hmo-health-plans.html">
+<meta name="robots" content="index, follow">
+
+<!------css link---------->
+<link rel="stylesheet" type="text/css" href="css/style.css">
+
+
+<link rel="preload" href="css/Inter-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="css/Inter-SemiBold.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="css/Inter-Bold.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="css/Inter-ExtraBold.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="css/PublicSans-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="css/PublicSans-Medium.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="css/PublicSans-ExtraBold.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="css/PublicSans-Black.woff2" as="font" type="font/woff2" crossorigin>
+
+<!-- Page-specific styles for the PPO/HMO plan comparison card (scoped to .plan_compare_*, does not touch shared css/style.css) -->
+<style>
+.plan_compare_box{
+	background:#ffffff;
+	border-radius:12px;
+	box-shadow:0 4px 18px rgba(0,0,0,0.14);
+	padding:20px 22px;
+	margin-top:22px;
+	}
+.plan_compare_filters{
+	display:flex;
+	flex-wrap:wrap;
+	gap:8px;
+	margin-bottom:14px;
+	}
+.plan_filter_btn{
+	cursor:pointer;
+	border:1px solid #1a569f;
+	background:#ffffff;
+	color:#1a569f;
+	font-family:'Inter';
+	font-weight:600;
+	font-size:13px;
+	line-height:normal;
+	padding:8px 16px;
+	border-radius:30px;
+	transition:all ease .2s;
+	}
+.plan_filter_btn.active{
+	background:#1a569f;
+	color:#ffffff;
+	}
+.plan_compare_table{
+	width:100%;
+	border-collapse:collapse;
+	font-family:'Public Sans';
+	}
+.plan_compare_table th,
+.plan_compare_table td{
+	padding:10px 6px;
+	text-align:left;
+	font-size:14px;
+	line-height:19px;
+	border-bottom:1px solid #e5edf5;
+	vertical-align:top;
+	}
+.plan_compare_table th{
+	color:#141414;
+	font-family:'Inter';
+	font-weight:700;
+	font-size:15px;
+	}
+.plan_compare_table td:first-child,
+.plan_compare_table th:first-child{
+	color:#555555;
+	font-weight:600;
+	width:34%;
+	}
+.plan_compare_table th.col-ppo,
+.plan_compare_table td.col-ppo{color:#1a569f;}
+.plan_compare_table th.col-hmo,
+.plan_compare_table td.col-hmo{color:#1c8a5a;}
+.plan_compare_table.filter-ppo .col-hmo{display:none;}
+.plan_compare_table.filter-hmo .col-ppo{display:none;}
+@media(max-width:767px){
+	.plan_compare_box{padding:16px 15px; margin-top:15px;}
+	.plan_filter_btn{font-size:12px; padding:7px 13px;}
+	.plan_compare_table th, .plan_compare_table td{font-size:12.5px; line-height:17px; padding:8px 5px;}
+	.plan_compare_table th{font-size:13.5px;}
+}
+</style>
+
+<!-- ========================== TRACKING CODES — DO NOT MODIFY ========================== -->
+<!-- These scripts power paid ad attribution (ClickFlare, Ringba, Clarity).                -->
+<!-- Removing or altering them will break conversion tracking and cost real ad dollars.     -->
+<!-- If you need to change tracking, update AGENTS.md first and get explicit approval.      -->
+<!-- ==================================================================================== -->
+
+<!-- Ringba call tracking tag -->
+<script src="//b-js.ringba.com/CA28ed4f20fb83474ba9ae68fe41e6ab78" async></script>
+
+<script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "x0ifuryqyz");
+</script>
+
+<!-- ======================== END TRACKING CODES ======================== -->
+
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=AW-18140219113"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'AW-18140219113');
+</script>
+
+</head>
+
+<body>
+
+<!-- ========================== TRACKING CODES — DO NOT MODIFY ========================== -->
+<!-- UTM capture, ClickFlare tag, and ClickFlare→Ringba bridge below.                     -->
+<!-- Removing or altering them will break conversion tracking and cost real ad dollars.     -->
+<!-- ==================================================================================== -->
+
+<!-- Capture UTM/tracking params from ad click into sessionStorage -->
+<script>
+(function() {
+    try {
+        if (!sessionStorage.getItem('landing_url')) {
+            var params = new URLSearchParams(window.location.search);
+            if (params.has('gclid') || params.has('cpid') || params.has('utm_source') || params.has('wbraid') || params.has('gbraid')) {
+                sessionStorage.setItem('landing_url', window.location.href);
+                params.forEach(function(value, key) {
+                    sessionStorage.setItem('utm_' + key, value);
+                });
+            }
+        }
+    } catch (_) {} // sessionStorage throws when the browser blocks site data
+})();
+</script>
+
+<!-- ClickFlare non-redirect tracking script -->
+<script>!function(){"use strict";var t="lp_ref",n="cpid",e="lpurl",c="https://leosourceclick.com",r="(?<domain>http(?:s?)://[^/]*)".concat("/cf/click"),a="(?:(?:/(?<cta>[1-9][0-9]*)/?)|(?:/))?",i="^".concat(r).concat(a).concat("(?:$|(\\\\?.*))"),o='javascript:window.clickflare.l="(?<original_link>'.concat(r).concat(a,'("|(\\\\?[^"]*"))).*'),s=function(){return new RegExp(i,"")},u=function(){return new RegExp(o,"")};function l(t){var n=function(t){return t.replace(s(),(function(t){for(var n=[],e=1;e<arguments.length;e++)n[e-1]=arguments[e];var r=n[n.length-1].domain;return t.replace(r,c)}))}(t);return'javascript:window.clickflare.l="'.concat(n,'"; void 0;')}function d(t,n){if(n&&t&&n.apply(document,[t]),/loaded|interactive|complete/.test(document.readyState))for(var e=0,c=document.links.length;e<c;e++)if(s().test(document.links[e].href)){var r=document.links[e];window.clickflare.links_replaced.has(r)||(r.href=l(r.href),window.clickflare.links_replaced.add(r))}}var f,h,m,p;!function(r,a){var i=document.onreadystatechange;window.clickflare||(window.clickflare={listeners:{},customParams:{},links_replaced:new Set,addEventListener:function(t,n){var e=this.listeners[t]||[];e.includes(n)||e.push(n),this.listeners[t]=e},dispatchEvent:function(t,n){n&&(this.customParams[t]=n),(this.listeners[t]||[]).forEach((function(t){return t(n)}))},push:function(t,n){n&&(this.customParams[t]=n),(this.listeners[t]||[]).forEach((function(t){return t(n)}))}},document.onreadystatechange=function(t){return d(t,i)},d(null,i),setTimeout((function(){!function(r,a){var i,o=function(r,a){var i=new URL("".concat(c).concat(r));o=a,s="{",u=s+s,l="_",d=l+l,o.startsWith(u)||o.startsWith(d)||i.searchParams.set(n,a);var o,s,u,l,d;return i.searchParams.append(t,document.referrer),i.searchParams.append(e,location.href),i.searchParams.append("lpt",document.title),i.searchParams.append("t",(new Date).getTime().toString()),i.toString()}(r,a),s=document.createElement("script"),l=document.scripts[0];s.async=1,s.src=o,s.onerror=function(){!function(){for(var t=function(t,n){var e=document.links[t];u().test(decodeURI(e.href))&&setTimeout((function(){e&&e.setAttribute("href",function(t){var n=t.match(u());if(n){var e=(n.groups||{}).original_link;return e?e.slice(0,-1):t}return t}(decodeURI(e.href)))}))},n=0,e=document.links.length;n<e;n++)t(n)}()},null===(i=l.parentNode)||void 0===i||i.insertBefore(s,l)}(r,a)})))}("".concat("/cf/tags","/").concat(new URL(window.location.href).searchParams.get("cftmid")||"6a0fb09a5d264100123b892d"),(m=new URL(window.location.href).searchParams.get(n),f=new RegExp("(^| )".concat("cf_cpid","=([^;]+)")),p=(h=document.cookie.match(f))&&h.pop()||null,m||p||"__CAMPAIGN_ID__"))}();</script>
+
+<!-- Bridge: pass ClickFlare click ID to Ringba -->
+<script>
+(function() {
+  var intervalId = setInterval(function() {
+    var cfClickId = (window.clickflare && window.clickflare.tracking_params && window.clickflare.tracking_params.click_id)
+      || (document.cookie.match(/(^| )cf_click_id=([^;]+)/) || [])[2]
+      || '';
+    if (cfClickId) {
+      (window._rgba_tags = (window._rgba_tags || [])).push({ type: "User", clickid: cfClickId });
+      clearInterval(intervalId);
+    }
+  }, 500);
+  setTimeout(function() { clearInterval(intervalId); }, 15000);
+})();
+</script>
+
+<!-- ======================== END TRACKING CODES ======================== -->
+
+<!-- TrustedForm -->
+<script type="text/javascript">
+  (function() {
+    var tf = document.createElement('script');
+    tf.type = 'text/javascript';
+    tf.async = true;
+    tf.src = ("https:" == document.location.protocol ? 'https' : 'http') +
+      '://api.trustedform.com/trustedform.js?field=xxTrustedFormCertUrl&use_tagged_consent=true&l=' +
+      new Date().getTime() + Math.random();
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(tf, s);
+  })();
+</script>
+<noscript>
+  <img src='https://api.trustedform.com/ns.gif' />
+</noscript>
+<!-- End TrustedForm -->
+
+<!-------Top-Caption------->
+<div class="top_caption">
+    <div class="container">
+        <p>Compare PPO & HMO Health Plans Side-By-Side &mdash; Find Your Fit In Minutes</p>
+    </div>
+</div>
+
+<!----------Header--------->
+<div class="header">
+    <div class="container">
+		<div class="header_row">
+        	<img src="images/logo.webp" alt="logo" class="logo">
+
+            <a href="tel:+18007581590" class="header_right">
+                <div class="header_call_icon">
+                    <img src="images/call-icn.webp" alt="icon" class="header_call animated tada">
+                </div>
+                <div class="header_right_content">
+                    <p class="header_right_text1">Speak with a Licensed Advisor</p>
+                    <p class="header_right_text2">(800) 758-1590</p>
+                    <p class="header_right_text3">12 Agents Available Now</p>
+                </div>
+            </a>
+
+        </div>
+    </div>
+</div>
+
+<!------Header-Strip------->
+<div class="header_strip">
+    <div class="header_strip_slider">
+        <div class="header_strip_slider_inner">
+            <div class="header_strip_slider_box">
+                <p class="header_strip_text"><img src="images/star.webp" class="header_strip_icon" alt="icon">Finally understood the real difference between PPO and HMO - Carla M.</p>
+                <p class="header_strip_text"><img src="images/star.webp" class="header_strip_icon" alt="icon">Kept my same doctors with a PPO plan - James R.</p>
+                <p class="header_strip_text"><img src="images/star.webp" class="header_strip_icon" alt="icon">Cut my premium switching to an HMO - Denise T.</p>
+                <p class="header_strip_text"><img src="images/star.webp" class="header_strip_icon" alt="icon">My advisor explained referrals before I signed up - Marcus L.</p>
+                <p class="header_strip_text"><img src="images/star.webp" class="header_strip_icon" alt="icon">Picked the plan type that actually fit my budget - Priya S.</p>
+            </div>
+        </div>
+
+        <div class="header_strip_slider_inner">
+            <div class="header_strip_slider_box">
+                <p class="header_strip_text"><img src="images/star.webp" class="header_strip_icon" alt="icon">Finally understood the real difference between PPO and HMO - Carla M.</p>
+                <p class="header_strip_text"><img src="images/star.webp" class="header_strip_icon" alt="icon">Kept my same doctors with a PPO plan - James R.</p>
+                <p class="header_strip_text"><img src="images/star.webp" class="header_strip_icon" alt="icon">Cut my premium switching to an HMO - Denise T.</p>
+                <p class="header_strip_text"><img src="images/star.webp" class="header_strip_icon" alt="icon">My advisor explained referrals before I signed up - Marcus L.</p>
+                <p class="header_strip_text"><img src="images/star.webp" class="header_strip_icon" alt="icon">Picked the plan type that actually fit my budget - Priya S.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!---------Banner---------->
+<div class="banner" id="form">
+	<div class="container">
+    	<div class="banner_content">
+        	<h1 class="banner_heading">PPO vs. HMO Health Plans <br>&mdash; <span>Compare Your Options.</span></h1>
+            <p class="banner_paragraph">PPO plans give you network flexibility and no referrals. HMO plans trade some of that flexibility for lower monthly costs. A licensed advisor compares PPO health insurance and HMO insurance side-by-side <br class="show-desk">so you pick the plan type that actually fits your life.</p>
+
+            <div class="plan_compare_box">
+                <div class="plan_compare_filters">
+                    <button type="button" class="plan_filter_btn active" data-filter="all">Compare Both</button>
+                    <button type="button" class="plan_filter_btn" data-filter="ppo">PPO Plans</button>
+                    <button type="button" class="plan_filter_btn" data-filter="hmo">HMO Plans</button>
+                </div>
+                <table class="plan_compare_table" id="planCompareTable">
+                    <thead>
+                        <tr>
+                            <th>&nbsp;</th>
+                            <th class="col-ppo">PPO</th>
+                            <th class="col-hmo">HMO</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Network access</td>
+                            <td class="col-ppo">See in &amp; out-of-network doctors</td>
+                            <td class="col-hmo">In-network only (except emergencies)</td>
+                        </tr>
+                        <tr>
+                            <td>Referrals</td>
+                            <td class="col-ppo">No referral needed for specialists</td>
+                            <td class="col-hmo">Referral from your PCP required</td>
+                        </tr>
+                        <tr>
+                            <td>Monthly cost</td>
+                            <td class="col-ppo">Higher premium</td>
+                            <td class="col-hmo">Typically lower premium</td>
+                        </tr>
+                        <tr>
+                            <td>Best for</td>
+                            <td class="col-ppo">Keeping current doctors, frequent travel</td>
+                            <td class="col-hmo">Lower cost, coordinated care</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <script>
+            (function() {
+                var buttons = document.querySelectorAll('.plan_filter_btn');
+                var table = document.getElementById('planCompareTable');
+                if (!buttons.length || !table) return;
+                buttons.forEach(function(btn) {
+                    btn.addEventListener('click', function() {
+                        buttons.forEach(function(b) { b.classList.remove('active'); });
+                        btn.classList.add('active');
+                        table.classList.remove('filter-ppo', 'filter-hmo');
+                        var filter = btn.getAttribute('data-filter');
+                        if (filter === 'ppo') table.classList.add('filter-ppo');
+                        if (filter === 'hmo') table.classList.add('filter-hmo');
+                    });
+                });
+            })();
+            </script>
+
+            <div class="banner_form_box">
+                <p class="banner_form_box_heading">See PPO &amp; HMO Options in 2 Minutes</p>
+                <div class="banner_list_box">
+                    <ul class="banner_list">
+                        <li>
+                            <img src="images/bnr-list-icn1.webp" alt="icon">
+                            <p>Compare Network Types</p>
+                        </li>
+                        <li>
+                            <img src="images/bnr-list-icn2.webp" alt="icon">
+                            <p>Licensed Advisor Guidance</p>
+                        </li>
+                        <li>
+                            <img src="images/bnr-list-icn3.webp" alt="icon">
+                            <p>Free Quote</p>
+                        </li>
+                    </ul>
+                </div>
+                <form action="quiz.html" method="get">
+                    <div class="banner_form_box_inner">
+
+                        <div class="form_element">
+                            <input type="tel" name="zip" placeholder="Enter Zip Code" maxlength="5"  value="" class="input_field">
+                        </div>
+                        <div class="form_button_box">
+                            <button type="submit" class="form_button">See PPO &amp; HMO Options<img src="images/btn-arw.webp" class="form_button_arrow" alt="icon"></button>
+                            <p class="secure_text"><img src="images/lock-icn.webp" alt="icon">100% Secure & Confidential</p>
+                        </div>
+
+                    </div>
+                </form>
+            </div>
+            <div class="show-mob">
+                <a href="tel:+18007581590">
+                    <div class="contact_box">
+                        <p class="contact_box_heading"><span>For Immediate Assistance</span></p>
+                        <div class="contact_deatils_box">
+                            <div class="contact_deatils_left">
+                                <img src="images/contact-icn.webp" class="contact_icon animated tada" alt="icon">
+                            </div>
+                            <div class="contact_deatils_right">
+                                <p class="contact_deatils_text1">Speak with a Licensed Advisor</p>
+                                <p class="contact_deatils_text2">(800) 758-1590</p>
+                                <p class="contact_deatils_text3">12 Agents Available Now</p>
+                            </div>
+                        </div>
+                    </div>
+                </a>
+            	<div class="mobile_banner_image_box">
+            		<img src="images/mob-bnr-img.webp" class="mobile_banner_image" alt="image">
+                </div>
+            </div>
+     	</div>
+    </div>
+</div>
+
+<!-----Banner-Bottom------->
+<div class="banner_bottom">
+    <div class="container">
+    	<h2 class="banner_bottom_heading">PPO And HMO Plans From The Carriers You Know</h2>
+        <ul class="banner_bottom_list">
+            <li><a href="quiz.html"><img src="images/bnr-btm-logo1.webp" class="banner_bottom_logo" alt="logo"></a></li>
+            <li><a href="quiz.html"><img src="images/bnr-btm-logo2.webp" class="banner_bottom_logo" alt="logo"></a></li>
+            <li><a href="quiz.html"><img src="images/bnr-btm-logo3.webp" class="banner_bottom_logo" alt="logo"></a></li>
+            <li><a href="quiz.html"><img src="images/bnr-btm-logo4.webp" class="banner_bottom_logo" alt="logo"></a></li>
+            <li><a href="quiz.html"><img src="images/bnr-btm-logo5.webp" class="banner_bottom_logo" alt="logo"></a></li>
+            <li><a href="quiz.html"><img src="images/bnr-btm-logo6.webp" class="banner_bottom_logo" alt="logo"></a></li>
+        </ul>
+    </div>
+</div>
+
+<!-------Section-1 (Why Plan Type Matters)--------->
+<div class="section1">
+    <div class="container">
+    	<h2 class="common_heading">Network Flexibility <br><span>Or Lower Cost?</span></h2>
+        <p class="common_paragraph">PPO plans and HMO plans aren't just different names - they trade off network freedom against monthly premium in different ways. Here's how that shows up in real life.</p>
+		<div class="section1_row">
+            <div class="section1_column">
+            	<p class="section1_column_number">1</p>
+                <h3 class="section1_column_heading">Want To Keep <br>Your Doctors?</h3>
+                <p class="section1_column_paragraph">A PPO plan lets you see specialists and out-of-network doctors without a referral - ideal if you already have providers you don't want to switch.</p>
+                <a href="quiz.html"><img src="images/s1-col-img1.webp" class="section1_column_image section1_column_image1" alt="image"></a>
+            </div>
+            <div class="section1_column">
+            	<p class="section1_column_number">2</p>
+                <h3 class="section1_column_heading">Want The Lower <br>Monthly Premium?</h3>
+                <p class="section1_column_paragraph">HMO plans typically cost less each month in exchange for a smaller in-network provider list and referrals through your primary care doctor.</p>
+                <a href="quiz.html"><img src="images/s1-col-img2.png" class="section1_column_image section1_column_image2" alt="image"></a>
+            </div>
+            <div class="section1_column">
+            	<p class="section1_column_number">3</p>
+                <h3 class="section1_column_heading">Not Sure Which <br>Fits You?</h3>
+                <p class="section1_column_paragraph">A licensed advisor walks through your doctors, budget, and travel needs, then shows you real PPO and HMO options side-by-side.</p>
+               	<a href="quiz.html"><img src="images/s1-col-img3.webp" class="section1_column_image section1_column_image3" alt="image"></a>
+            </div>
+        </div>
+        <div class="clearall"></div>
+        <div class="button_box">
+        	<p class="button_text1"><img src="images/timer-icon.webp" class="button_text1_icon" alt="icon">Get Your Free Quote in 2 Minutes</p>
+            <a href="javascript:bookmarkscroll.scrollTo('form')" class="common_button">See PPO &amp; HMO Options<img src="images/btn-arw.webp" class="button_arrow" alt="icon"></a>
+            <p class="button_text2"><img src="images/btn-star.webp" class="button_text2_icon" alt="icon">Rated 4.9 by 23,000+ U.S. Customers</p>
+        </div>
+    </div>
+</div>
+
+<!-------Section-What's Actually Different--------->
+<div class="section2">
+    <div class="container">
+    	<h2 class="common_heading">PPO And HMO: <br><span>What's Actually Different.</span></h2>
+        <p class="common_paragraph">Both PPO plans and HMO plans can be solid ACA-compliant coverage - the difference is how you access care, not whether you're covered.</p>
+		<div class="section1_row">
+            <div class="section1_column" style="padding-bottom:35px;">
+            	<p class="section1_column_number">1</p>
+                <h3 class="section1_column_heading">Network <br>Access</h3>
+                <p class="section1_column_paragraph">PPO plans cover in-network and out-of-network care (out-of-network usually costs more). HMO plans generally only cover in-network care except in emergencies.</p>
+            </div>
+            <div class="section1_column" style="padding-bottom:35px;">
+            	<p class="section1_column_number">2</p>
+                <h3 class="section1_column_heading">Referrals To <br>See A Specialist</h3>
+                <p class="section1_column_paragraph">PPO plans let you go straight to a specialist. HMO plans require a referral from your primary care physician first, which can add a step but also keeps your care coordinated.</p>
+            </div>
+            <div class="section1_column" style="padding-bottom:35px;">
+            	<p class="section1_column_number">3</p>
+                <h3 class="section1_column_heading">Monthly <br>Premium</h3>
+                <p class="section1_column_paragraph">The flexibility of a PPO plan usually comes with a higher monthly premium. HMO plans trade some flexibility for a lower monthly cost.</p>
+            </div>
+        </div>
+        <div class="clearall"></div>
+        <div class="button_box">
+        	<p class="button_text1"><img src="images/timer-icon.webp" class="button_text1_icon" alt="icon">Get Your Free Quote in 2 Minutes</p>
+            <a href="javascript:bookmarkscroll.scrollTo('form')" class="common_button">See PPO &amp; HMO Options<img src="images/btn-arw.webp" class="button_arrow" alt="icon"></a>
+            <p class="button_text2"><img src="images/btn-star.webp" class="button_text2_icon" alt="icon">Rated 4.9 by 23,000+ U.S. Customers</p>
+        </div>
+    </div>
+</div>
+
+<!-------Section-Which Fits You--------->
+<div class="section1">
+    <div class="container">
+    	<h2 class="common_heading">Which Plan Type <br><span>Fits You?</span></h2>
+        <p class="common_paragraph">Neither PPO nor HMO is "better" across the board - the right choice depends on your doctors, your budget, and how you use care.</p>
+		<div class="section1_row">
+            <div class="section1_column">
+            	<p class="section1_column_number">1</p>
+                <h3 class="section1_column_heading">You Travel Often <br>Or See Specialists</h3>
+                <p class="section1_column_paragraph">If you split time between cities or already see specialists without a referral, a PPO plan's wider network usually pays for itself.</p>
+            </div>
+            <div class="section1_column">
+            	<p class="section1_column_number">2</p>
+                <h3 class="section1_column_heading">You Want The Lowest <br>Predictable Cost</h3>
+                <p class="section1_column_paragraph">If your main goal is keeping the monthly bill down and you're comfortable with a primary care doctor coordinating your care, an HMO plan is often the better value.</p>
+            </div>
+            <div class="section1_column">
+            	<p class="section1_column_number">3</p>
+                <h3 class="section1_column_heading">You Want A Second <br>Opinion First</h3>
+                <p class="section1_column_paragraph">If you're not sure, a licensed advisor can price out both a PPO and an HMO option in your area before you decide.</p>
+            </div>
+        </div>
+        <div class="clearall"></div>
+        <div class="button_box">
+        	<p class="button_text1"><img src="images/timer-icon.webp" class="button_text1_icon" alt="icon">Get Your Free Quote in 2 Minutes</p>
+            <a href="javascript:bookmarkscroll.scrollTo('form')" class="common_button">See PPO &amp; HMO Options<img src="images/btn-arw.webp" class="button_arrow" alt="icon"></a>
+            <p class="button_text2"><img src="images/btn-star.webp" class="button_text2_icon" alt="icon">Rated 4.9 by 23,000+ U.S. Customers</p>
+        </div>
+    </div>
+</div>
+
+<!-------Section-3--------->
+<div class="section3">
+    <div class="container">
+    	<h2 class="common_heading">Concierge Advisors. <br><span>Not A Lead Broker.</span></h2>
+        <p class="common_paragraph">We're an independent agency built to make PPO vs. HMO shopping simple. Licensed advisors compare your real network, referral, and cost <br class="show-desk">tradeoffs across carriers, and help you enroll - the recommendation is always yours, never the carrier's.</p>
+		<div class="section3_content">
+        	<div class="section3_content_left hide-mob">
+            	<img src="images/s3-img.webp" class="section3_image" alt="image">
+            </div>
+        	<div class="section3_content_right">
+            	<div class="show-mob">
+                    <div class="section3_image_box">
+                        <img src="images/s3-img-mob.webp" class="mobile_section3_image" alt="image">
+                    </div>
+                </div>
+            	<div class="section3_list_box">
+                    <ul class="section3_list">
+                        <li>
+                            <h3 class="section3_list_heading">Real Side-By-Side Comparisons</h3>
+                            <p class="section3_list_paragraph">See PPO and HMO options for your zip code before you choose</p>
+                        </li>
+                        <li>
+                            <h3 class="section3_list_heading">Plain-Language Explanations</h3>
+                            <p class="section3_list_paragraph">Network, referral, and cost tradeoffs explained before you enroll</p>
+                        </li>
+                        <li>
+                            <h3 class="section3_list_heading">No Advisor Fees, Ever</h3>
+                            <p class="section3_list_paragraph">Carriers pay us. No retainer, no commission added to your premium</p>
+                        </li>
+                    </ul>
+                </div>
+                <div class="clearall"></div>
+                <div class="button_box">
+                    <p class="button_text1"><img src="images/timer-icon.webp" class="button_text1_icon" alt="icon">Get Your Free Quote in 2 Minutes</p>
+                    <a href="javascript:bookmarkscroll.scrollTo('form')" class="common_button">See PPO &amp; HMO Options<img src="images/btn-arw.webp" class="button_arrow" alt="icon"></a>
+                    <p class="button_text2"><img src="images/btn-star.webp" class="button_text2_icon" alt="icon">Rated 4.9 by 23,000+ U.S. Customers</p>
+                </div>
+        	</div>
+    	</div>
+    </div>
+</div>
+
+<!-------Section-4--------->
+<div class="section4">
+    <div class="container">
+    	<h2 class="common_heading">Trusted To Compare <br><span>PPO And HMO Plans.</span></h2>
+		<div class="rating_box">
+        	<p class="rating_text1">4.9</p>
+            <img src="images/star.webp" class="rating_star" alt="icon">
+        	<p class="rating_text2">23,000+ Happy Families</p>
+        </div>
+
+        <div class="testimonial_row">
+        	<div class="testimonial_column">
+            	<div class="testimonial_star_box">
+                	<img src="images/star.webp" class="testimonial_star" alt="icon">
+                </div>
+                <img src="images/quote.webp" class="testimonial_quote" alt="icon">
+                <p class="testimonial_column_paragraph">"I didn't realize how different a PPO and an HMO could be until my advisor laid it out side-by-side. I kept every one of my current doctors."</p>
+                <div class="testimonial_user_details">
+                	<img src="images/testi-user-img1.webp" class="testimonial_user_image" alt="image">
+                	<p class="testimonial_user_name"><span>Carla M.</span><br>Phoenix, AZ &middot; Chose a PPO</p>
+                </div>
+            </div>
+            <div class="testimonial_column">
+                <div class="testimonial_star_box">
+                	<img src="images/star.webp" class="testimonial_star" alt="icon">
+                </div>
+                <img src="images/quote.webp" class="testimonial_quote" alt="icon">
+                <p class="testimonial_column_paragraph">"I didn't need to see specialists without a referral, so switching to an HMO saved me real money every month."</p>
+                <div class="testimonial_user_details">
+                	<img src="images/testi-user-img2.webp" class="testimonial_user_image" alt="image">
+                	<p class="testimonial_user_name"><span>Denise T.</span><br>San Antonio, TX &middot; Chose an HMO</p>
+                </div>
+            </div>
+            <div class="testimonial_column">
+                <div class="testimonial_star_box">
+                	<img src="images/star.webp" class="testimonial_star" alt="icon">
+                </div>
+                <img src="images/quote.webp" class="testimonial_quote" alt="icon">
+                <p class="testimonial_column_paragraph">"My advisor explained the referral rules before I signed anything. No surprises when I actually needed to see a specialist."</p>
+                <div class="testimonial_user_details">
+                	<img src="images/testi-user-img3.webp" class="testimonial_user_image" alt="image">
+                	<p class="testimonial_user_name"><span>Marcus L.</span><br>Tampa, FL &middot; Compared both plan types</p>
+                </div>
+            </div>
+		</div>
+        <div class="clearall"></div>
+        <div class="button_box">
+        	<p class="button_text1"><img src="images/timer-icon.webp" class="button_text1_icon" alt="icon">Get Your Free Quote in 2 Minutes</p>
+            <a href="javascript:bookmarkscroll.scrollTo('form')" class="common_button">See PPO &amp; HMO Options<img src="images/btn-arw.webp" class="button_arrow" alt="icon"></a>
+            <p class="button_text2"><img src="images/btn-star.webp" class="button_text2_icon" alt="icon">Rated 4.9 by 23,000+ U.S. Customers</p>
+        </div>
+    </div>
+</div>
+
+<!-------Section-5--------->
+<div class="section5">
+    <div class="container">
+    	<h2 class="common_heading">PPO Vs. HMO <br><span>Questions, Answered.</span></h2>
+        <div class="faq-box">
+            <div class="faq-row">
+                <h3 class="accordion acdn-heading accordion-open">What's the difference between a PPO and an HMO?</h3>
+                <div class="acdn-content">
+                    <p class="acdn-para">A PPO (Preferred Provider Organization) plan lets you see in-network and out-of-network doctors and specialists without a referral. An HMO (Health Maintenance Organization) plan generally requires you to use in-network providers and get a referral from your primary care doctor to see a specialist - in exchange, HMO plans typically cost less per month.</p>
+                </div>
+            </div>
+
+            <div class="faq-row">
+                <h3 class="accordion acdn-heading">Do I need a referral with a PPO plan?</h3>
+                <div class="acdn-content" style="display: none;">
+                    <p class="acdn-para">No. One of the main advantages of PPO health insurance is going straight to a specialist without a referral from a primary care doctor.</p>
+                </div>
+            </div>
+
+            <div class="faq-row">
+                <h3 class="accordion acdn-heading">Is HMO insurance cheaper than a PPO?</h3>
+                <div class="acdn-content" style="display: none;">
+                    <p class="acdn-para">Usually, yes. HMO plans tend to have lower monthly premiums than comparable PPO plans, since the network is smaller and care is coordinated through a primary care doctor. Your advisor can compare real quotes for both in your area.</p>
+                </div>
+            </div>
+
+            <div class="faq-row">
+                <h3 class="accordion acdn-heading">Can I see an out-of-network doctor on an HMO plan?</h3>
+                <div class="acdn-content" style="display: none;">
+                    <p class="acdn-para">Generally no, except for true emergencies. HMO plans are built around an in-network provider list, which is part of why they cost less than PPO plans.</p>
+                </div>
+            </div>
+
+            <div class="faq-row">
+                <h3 class="accordion acdn-heading">Are PPO and HMO plans ACA-compliant?</h3>
+                <div class="acdn-content" style="display: none;">
+                    <p class="acdn-para">Yes. Both PPO and HMO are common plan types offered on and off the ACA marketplace. The letters describe how you access care (network and referrals), not whether the plan meets ACA essential health benefit requirements.</p>
+                </div>
+            </div>
+
+            <div class="faq-row">
+                <h3 class="accordion acdn-heading">Is the Leo Source advisor service free?</h3>
+                <div class="acdn-content" style="display: none;">
+                    <p class="acdn-para">Yes. Our concierge advisors are compensated directly by carriers - there's no separate fee, retainer, or commission added to your premium.</p>
+                </div>
+            </div>
+
+            <div class="faq-row">
+                <h3 class="accordion acdn-heading">Who does Leo Source serve?</h3>
+                <div class="acdn-content" style="display: none;">
+                    <p class="acdn-para">Leo Source focuses exclusively on Americans <strong>ages 18-64,</strong> matching them with the PPO, HMO, or other health coverage that fits their situation.</p>
+                </div>
+            </div>
+        </div>
+        <div class="clearall"></div>
+        <div class="button_box">
+        	<p class="button_text1"><img src="images/timer-icon.webp" class="button_text1_icon" alt="icon">Get Your Free Quote in 2 Minutes</p>
+            <a href="javascript:bookmarkscroll.scrollTo('form')" class="common_button">See PPO &amp; HMO Options<img src="images/btn-arw.webp" class="button_arrow" alt="icon"></a>
+            <p class="button_text2"><img src="images/btn-star.webp" class="button_text2_icon" alt="icon">Rated 4.9 by 23,000+ U.S. Customers</p>
+        </div>
+    </div>
+</div>
+
+<!---------Footer---------->
+<div class="footer">
+    <div class="container">
+        <div class="footer_links_inner">
+            <div class="footer_links_column footer_links_column1">
+                <a href="#"><img src="images/logo.webp" class="footer_logo"  alt="logo"></a>
+                <p class="footer_links_text">A licensed independent insurance agency helping Americans ages 18-64 compare PPO, HMO, and other health coverage options.</p>
+
+            </div>
+
+            <div class="footer_links_column footer_links_column2">
+                <p class="footer_links_heading">Shop insurance</p>
+                <ul class="footer_links_list">
+                    <li><a href="quiz.html">PPO & HMO plans</a></li>
+                    <li><a href="quiz.html">Marketplace health plans</a></li>
+                    <li><a href="quiz.html">Premium private plans</a></li>
+                    <li><a href="quiz.html">COBRA alternatives</a></li>
+                    <li><a href="quiz.html">Self-employed & 1099 coverage</a></li>
+                </ul>
+            </div>
+
+            <div class="footer_links_column footer_links_column3">
+                <p class="footer_links_heading">Company</p>
+                <ul class="footer_links_list">
+                    <li><a href="#">About Leo Source</a></li>
+                    <li><a href="#">Our licensed agents</a></li>
+                    <li><a href="#">Careers</a></li>
+                    <li><a href="#">Contact</a></li>
+                    <li><a href="#">Press</a></li>
+                </ul>
+            </div>
+
+            <div class="footer_links_column footer_links_column4">
+                <p class="footer_links_heading">Legal</p>
+                <ul class="footer_links_list">
+                    <li><a href="privacy.html" target="_blank">Privacy policy</a></li>
+                    <li><a href="term.html" target="_blank">Terms of use</a></li>
+                    <li><a href="#">Licensing & disclosures</a></li>
+                    <li><a href="#">Do not sell my info</a></li>
+                    <li><a href="#">Accessibility</a></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="footer_note_box">
+        	<p>Leo Source Insurance Agency, LLC (FL License #L118979) is a licensed health insurance agency. We do not discriminate based on race, color, national origin,
+sex, age, or disability. Plan availability, coverage, network, and pricing vary by state and carrier. This site provides general information and is not medical or legal advice. Calling the number provided will connect you with a licensed insurance agent.</p>
+        </div>
+       <p class="footer_text">&copy; <script type="text/javascript">var year = new Date();document.write(year.getFullYear());</script> Leo Source Insurance Agency, LLC. <br class="show-mob">All Rights Reserved</p>
+    </div>
+</div>
+
+<!---------Script---------->
+<script type="text/javascript" src="js/jquery-3.6.0.min.js"></script>
+<script type="text/javascript" src="js/bookmarkscroll.js"></script>
+<script type="text/javascript">
+
+$(document).ready(function(e){
+
+	//accordion JS
+	$(".accordion").click(function() {
+
+		var questionDiv = $(this);
+		var answerDiv   = $(this).next('.acdn-content');
+		var idx = $('.acdn-content').index(answerDiv);
+
+		$('.acdn-content').each(function(index, ansDiv) {
+            if(index != idx && $(ansDiv).is(':visible')) {
+				$(ansDiv).slideUp(500, function() {
+					$(ansDiv).prev('.accordion').removeClass('accordion-open');
+				});
+			}
+        });
+
+		if (answerDiv.is(':visible')) {
+			answerDiv.stop().slideUp(500, function() {
+				questionDiv.removeClass('accordion-open');
+			});
+		} else {
+		  questionDiv.addClass('accordion-open');
+		  answerDiv.stop().slideDown(500);
+		}
+	});
+});
+
+</script>
+
+<!-- ========================== TRACKING CODES — DO NOT MODIFY ========================== -->
+<!-- Connect Streams module (commented out on this page — see note). Do not remove.        -->
+<!-- ==================================================================================== -->
+
+<!-- Connect Streams Module — COMMENTED OUT: requires a phone number to render.
+     The lightbox is a callback widget (rings the user's phone), so it only works
+     on post-form pages where we have the lead's number. To enable here, build a
+     custom click-to-call popup instead.
+
+<div class="g3cm_holder" data-module="1966" data-showoninit="false" data-conversionid="" data-destination="" data-destinationext="" data-followup="" style="display:none;">Thank you for your inquiry. A representative will be in contact with you shortly.</div>
+
+<script type="text/javascript">
+window.g3cm = window.g3cm || function () { (g3cm.q = g3cm.q || []).push(arguments) };
+g3cm('loadjquery', 'false');
+g3cm('send', 'init');
+
+(function() {
+    var shown = sessionStorage.getItem('cs_shown');
+    if (shown) return;
+
+    function showPopup() {
+        if (sessionStorage.getItem('cs_shown')) return;
+        sessionStorage.setItem('cs_shown', '1');
+        g3cm('show');
+    }
+
+    setTimeout(showPopup, 10000);
+
+    document.documentElement.addEventListener('mouseleave', function(e) {
+        if (e.clientY <= 0) showPopup();
+    });
+})();
+</script>
+<script src="https://api.connectstreams.com/js/connectme-v3.min.js" async="async"></script>
+-->
+
+<!-- ======================== END TRACKING CODES ======================== -->
+
+<!-- Carry ad-click params (gclid/campaignid/keyword/etc.) forward into quiz.html.
+     The zip form (method=get) and the CTA links otherwise navigate to a bare
+     quiz.html, so the ClickFlare tag re-fires on the quiz with no ad params and the
+     lead conversion loses keyword/campaign/gclid. We read the original landing URL
+     captured in sessionStorage and (a) inject hidden inputs into the quiz form and
+     (b) append the params to every quiz.html link. Does NOT touch tracking blocks. -->
+<script>
+(function () {
+    try {
+        var landing = sessionStorage.getItem('landing_url');
+        var src = new URLSearchParams(landing ? new URL(landing).search : window.location.search);
+        var KEEP = ['gclid','wbraid','gbraid','cpid','campaignid','adgroupid','creative','keyword',
+                    'matchtype','network','placement','targetid','loc_physical_ms','loc_interest_ms',
+                    'gad_source','gad_campaignid','utm_source','utm_medium','utm_campaign','utm_term','utm_content'];
+        var carry = new URLSearchParams();
+        KEEP.forEach(function (k) { var v = src.get(k); if (v) carry.set(k, v); });
+        if (carry.toString() === '') return; // nothing to carry (organic/direct)
+        // (a) zip form (GET): hidden inputs become query params on submit
+        document.querySelectorAll('form[action^="quiz.html"]').forEach(function (f) {
+            carry.forEach(function (v, k) {
+                if (f.querySelector('input[name="' + k + '"]')) return;
+                var inp = document.createElement('input');
+                inp.type = 'hidden'; inp.name = k; inp.value = v;
+                f.appendChild(inp);
+            });
+        });
+        // (b) CTA links to quiz.html
+        document.querySelectorAll('a[href^="quiz.html"]').forEach(function (a) {
+            var href = a.getAttribute('href') || 'quiz.html';
+            var qi = href.indexOf('?');
+            var base = qi > -1 ? href.slice(0, qi) : href;
+            var merged = new URLSearchParams(qi > -1 ? href.slice(qi + 1) : '');
+            carry.forEach(function (v, k) { if (!merged.has(k)) merged.set(k, v); });
+            a.setAttribute('href', base + '?' + merged.toString());
+        });
+    } catch (_) {}
+})();
+</script>
+</body>
+</html>
