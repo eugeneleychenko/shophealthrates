@@ -1,0 +1,49 @@
+// Ingest endpoint for bot messages sent from GitHub Actions.
+//
+// WHY: the bot's own replies are posted by workflow shell scripts that curl the
+// Telegram API directly (.github/workflows/telegram-*.yml). They never pass
+// through Vercel, and Telegram does not echo a bot's own messages back to its
+// webhook — so without this endpoint the bot has no record of what it said, and
+// a follow-up like "the url does not work" has nothing to resolve against.
+//
+// The workflows DUAL-WRITE: they still curl Telegram first and unconditionally,
+// then post here. Telegram delivery therefore never depends on Vercel being up —
+// deliberately not a proxy, which would have made a Vercel outage mute the bot.
+//
+// Env: CHATLOG_SECRET (shared with the workflows via a GitHub secret).
+
+const chatlog = require("./_chatlog");
+
+module.exports = async (req, res) => {
+  if (req.method === "OPTIONS") return res.status(200).end();
+  if (req.method !== "POST") return res.status(200).send("ok");
+
+  let data = {};
+  try {
+    data = typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
+  } catch (_) {
+    return res.status(400).json({ ok: false, error: "bad json" });
+  }
+
+  // Fail closed on auth: without a configured secret this would be an open
+  // write endpoint that anyone could use to poison what the agents read.
+  const expected = (process.env.CHATLOG_SECRET || "").trim();
+  if (!expected) return res.status(503).json({ ok: false, error: "CHATLOG_SECRET not configured" });
+  const given = String(data.secret || req.headers["x-chatlog-secret"] || "").trim();
+  if (given !== expected) return res.status(401).json({ ok: false, error: "bad secret" });
+
+  const chatId = String(data.chat_id || "").trim();
+  const text = String(data.text || "").trim();
+  if (!chatId || !text) return res.status(200).json({ ok: true, skipped: "empty" });
+
+  const stored = await chatlog.record(chatId, {
+    role: "bot",
+    name: data.name || "leo_bot",
+    text: text,
+    messageId: data.message_id || null,
+  });
+
+  // Always 200 once authenticated — a workflow must never hang or fail because
+  // logging did. `stored:false` just means the store was unreachable.
+  return res.status(200).json({ ok: true, stored: stored });
+};
