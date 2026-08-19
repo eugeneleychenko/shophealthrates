@@ -110,10 +110,10 @@ jobs:
           # requests with the default GITHUB_TOKEN, so the run's actor is
           # github-actions[bot] — allow it or the action refuses to start.
           allowed_bots: "github-actions"
-          # TEMPORARY (2026-08-19): surfaces which tool calls get denied so the
-          # allowlist above can be tuned. Turn back off once it's settled — this
-          # prints Claude's full transcript into a public Actions log.
-          show_full_output: true
+          # To debug which tool calls get denied, set show_full_output: true and
+          # grep the run log for '"subtype": "permission_denied"' — the message
+          # field names the exact command. Leave it OFF normally: this repo is
+          # public, so it would print Claude's full transcript into a public log.
           prompt: |
             A client (${{ env.FROM }}) sent this message in the Telegram group for
             the static marketing site in this repo. Read AGENTS.md first for full
