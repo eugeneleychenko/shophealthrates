@@ -50,10 +50,19 @@ const SEEN_TTL = 300;     // seconds an update_id stays "seen"
 
 const enabled = () => Boolean(URL_BASE && TOKEN);
 
+// Circuit breaker. Each webhook makes up to two calls (seenUpdate + record),
+// so an unreachable store would otherwise cost 2 × TIMEOUT_MS on EVERY group
+// message. After one failure, skip all calls for BREAKER_MS — the store is
+// optional, and a dead store must not slow the bot down. Module scope, so it
+// persists across invocations on a warm Vercel instance and resets on a cold one.
+const BREAKER_MS = 30000;
+let trippedAt = 0;
+
 // Run a pipeline of Redis commands. Returns an array of results (one per
 // command) or null on any failure — never throws.
 async function upstash(commands) {
   if (!enabled() || !commands.length) return null;
+  if (trippedAt && Date.now() - trippedAt < BREAKER_MS) return null; // fast-fail
   try {
     const resp = await fetch(URL_BASE + "/pipeline", {
       method: "POST",
@@ -66,10 +75,12 @@ async function upstash(commands) {
       // awaited inline. The timeout is what keeps that from hurting.
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
-    if (!resp.ok) return null;
+    if (!resp.ok) { trippedAt = Date.now(); return null; }
     const out = await resp.json();
+    trippedAt = 0; // healthy again
     return Array.isArray(out) ? out.map((r) => (r && "result" in r ? r.result : null)) : null;
   } catch (_) {
+    trippedAt = Date.now();
     return null; // network error, timeout, bad JSON — memory is optional
   }
 }
