@@ -129,8 +129,17 @@ async function history(chatId, limit) {
     .filter((e) => e && e.x)
     .sort((a, b) => (a.t || 0) - (b.t || 0))
     .map((e) => {
-      const clock = new Date((e.t || 0) * 1000)
-        .toISOString().slice(11, 16); // HH:MM UTC
+      // Render in ET, not UTC. The business runs on ET (the cron is "9am ET",
+      // reports say "today · ET"), and an agent reading [02:40] for a message
+      // everyone saw at 10:40 PM will misjudge "this morning" / "yesterday".
+      let clock;
+      try {
+        clock = new Intl.DateTimeFormat("en-US", {
+          timeZone: "America/New_York", hour: "2-digit", minute: "2-digit", hour12: false,
+        }).format(new Date((e.t || 0) * 1000));
+      } catch (_) {
+        clock = new Date((e.t || 0) * 1000).toISOString().slice(11, 16);
+      }
       const body = e.x.length > LINE_MAX ? e.x.slice(0, LINE_MAX) + " …" : e.x;
       return "[" + clock + "] " + e.n + ": " + body.replace(/\s*\n\s*/g, " ");
     })
