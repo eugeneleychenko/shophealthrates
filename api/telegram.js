@@ -19,6 +19,11 @@
 const GH_OWNER = "eugeneleychenko";
 const GH_REPO = "shophealthrates";
 
+// Conversation memory + update dedupe. Best-effort by construction: every call
+// no-ops when the store is unconfigured or unreachable, so the bot behaves
+// exactly as it did before this existed. See api/_chatlog.js.
+const chatlog = require("./_chatlog");
+
 module.exports = async (req, res) => {
   // Telegram only ever POSTs. Anything else is a probe/health check.
   if (req.method !== "POST") return res.status(200).send("ok");
@@ -54,6 +59,36 @@ module.exports = async (req, res) => {
   const replyText = ((replyTo && (replyTo.text || replyTo.caption)) || "").trim();
   const withReplyContext = (q) =>
     replyText && q ? q + '\n\n[Context — sent as a reply to this earlier message: "' + replyText.slice(0, 500) + '"]' : q;
+
+  // Conversation memory — MUST stay above every branch below.
+  //
+  // Placement is load-bearing. It sits after the secret check and the chat
+  // allowlist (so we never store unauthenticated or unconsented chats), and
+  // ABOVE the nine slash-command branches and the `!mode` return further down —
+  // all of which return early. With privacy mode off the webhook receives every
+  // group message, and ordinary chatter is exactly the context that makes a
+  // later "the url does not work" interpretable, so it has to be recorded even
+  // though it triggers nothing.
+  //
+  // The dedupe also fixes a pre-existing bug unrelated to memory: Telegram
+  // redelivers an update when the webhook is slow, and five branches below fire
+  // a repository_dispatch. Today a redelivery of "/sales week" runs the workflow
+  // twice and posts the report twice.
+  //
+  // Fails OPEN: if the store is unreachable, seenUpdate returns false and the
+  // message is processed normally. A possible double-dispatch is strictly better
+  // than a silently dead bot.
+  const fromName =
+    (msg.from && (msg.from.username || msg.from.first_name)) || "someone";
+  if (await chatlog.seenUpdate(update && update.update_id)) {
+    return res.status(200).send("duplicate update");
+  }
+  await chatlog.record(chatId, {
+    role: "user",
+    name: fromName,
+    text: text,
+    messageId: msg.message_id,
+  });
 
   // How was the bot addressed? This sets the intent hint passed downstream:
   //   /change <edit>   → make a code change + deploy
