@@ -51,7 +51,9 @@ Never commit code that drops a tracking block.
 │   ├── telegram.js         # Telegram webhook: /help /change /ask /ringba /diagnose /check /sales /lookup /investigate /keywords; @mention questions → investigate-by-default (see Telegram Bot Commands)
 │   ├── log-lead.js         # Logs each lead to Google Sheet (Sheety) + missing-click_id alert
 │   ├── enrollment.js       # Sale/enrollment intake (Convoso webhook et al.): resolves truncated Sub_ID/email → full click_id, dedupes, logs event=enrollment + Telegram ping; ClickFlare ct=sale fire behind ENROLL_FIRE_CF
-│   └── daily-summary.js    # 9am ET cron: daily lead summary + ClickFlare health check
+│   ├── daily-summary.js    # 9am ET cron: daily lead summary + ClickFlare health check
+│   ├── _chatlog.js         # Conversation memory (Upstash REST). `_` = NOT routed by Vercel
+│   └── chatlog-ingest.js   # Authed ingest for bot replies sent from GitHub Actions
 ├── scripts/                # call-check-api.mjs, clickflare-api.mjs, sales-report.mjs, lookup.mjs, ringba-totp.js (not deployed)
 ├── api_docs/               # Vendor API notes (not deployed)
 ├── docs/                   # Extracted runbooks (see Further Documentation) + agent-eval.md (not deployed)
@@ -86,6 +88,7 @@ The bot is `@leosource_bot` in the "Leosource/ Integrations" group; the webhook 
 | `/ask <q>` (`/q`) | Answer a question about the site/code (no change) | telegram-agent.yml |
 | `@mention <question>` | Investigate-by-default — LLM queries the live systems and answers; a site-change ask is auto-handed to the code agent (never bounced to /change); replying to a bot message carries that message along as context | telegram-investigate.yml |
 | `stop` / `cancel` | Cancel a running `/change` | local (telegram.js) |
+| `/forget` | Wipe the recent messages the bot remembers for this chat | local (telegram.js) |
 
 ## Protected Tracking Codes — DO NOT MODIFY
 
@@ -142,6 +145,17 @@ vercel --prod --yes --token $VERCEL_TOKEN
 
 - **`.vercelignore` — KEEP IT.** It excludes `.env`, `.git`, `.github`, `*.md` (incl. this file and `docs/`), `scripts/`, `api_docs/`, `screenshots/`, `_agent_inbox/`, `.b2a/`. Without it, `AGENTS.md` (which holds API keys) and `.env` become publicly fetchable at e.g. `https://shophealthrates.com/AGENTS.md`.
 - **Deployment protection is OFF** (`ssoProtection: null`, set 2026-06-03) — every `*.vercel.app` deployment URL is publicly viewable. Re-enable via `PATCH /v9/projects/<id>` with `ssoProtection` if you want preview URLs gated again.
+
+## Conversation Memory (Telegram bot)
+
+The bot remembers the **last 25 messages per chat** so follow-ups like "the url does not work" or "that didn't work" resolve against what was actually said. Store: **Upstash Redis** (`telegram-chatlog`, region `iad1`, Free tier / 500K commands per month), reached over its HTTP REST API with plain `fetch` — **no npm package**, keeping `api/*.js` on Node builtins only.
+
+- **Strictly additive.** Every call in `api/_chatlog.js` is try/catch'd and returns a no-op value on failure; a 2s `AbortSignal` caps each call and a 30s circuit breaker stops a dead store from slowing the webhook. If Upstash is down the bot behaves exactly as it did before this existed.
+- **Env** — accepts `UPSTASH_REDIS_REST_*` **or** `KV_REST_API_*`. Vercel's Upstash Marketplace integration injects the `KV_*` names; looking only for `UPSTASH_*` silently stores nothing.
+- **Retention: rolling window, no TTL.** `LTRIM` keeps 25; nothing expires by time. This is *not* an archive.
+- **PII.** The enrollment ping contains consumer first name, phone last-4, click_id and email, and it is the message people reply to. It is stored deliberately — that recall is the point. Text is **not** redacted, because redaction would break the `name:kevin` → phone lookup. The bounded window and `/forget` are the controls instead.
+- **`/forget`** wipes a chat's window immediately (local, no Actions round trip). Keep it listed in both `handleHelp()` and the command table above.
+- **Dedupe.** `update_id` is checked before any branch runs, so a Telegram redelivery no longer double-fires `repository_dispatch`. At-most-once by design: a delivery that dies mid-flight is not retried, which is preferable to deploying the same change twice.
 
 ## Gotchas
 

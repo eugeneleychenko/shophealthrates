@@ -148,4 +148,13 @@ async function seenUpdate(updateId) {
   return res[0] === null;                // NX returned null → key existed → duplicate
 }
 
-module.exports = { record, history, seenUpdate, enabled, WINDOW };
+// Purge a chat's stored window. The manual override for "someone just pasted
+// something that shouldn't be retained" — see the PII note in the header.
+// Returns true only if the delete actually reached the store.
+async function forget(chatId) {
+  if (!enabled() || !chatId) return false;
+  const res = await upstash([["DEL", chatKey(chatId)]]);
+  return res !== null;
+}
+
+module.exports = { record, history, seenUpdate, forget, enabled, WINDOW };

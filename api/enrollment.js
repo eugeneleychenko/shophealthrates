@@ -22,6 +22,7 @@
 // non-empty txid sentinel ("enroll-…") so lead-reconcile/daily-summary/sales-report
 // (which filter event==="lead_submitted" or skip non-empty txid) never touch them.
 
+const chatlog = require("./_chatlog");
 const SHEETY_URL = (process.env.SHEETY_URL || "").replace(/\\n$/, "").trim();
 const TG_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const CHAT_ID = (process.env.ALLOWED_CHAT_IDS || "").split(",")[0].trim();
@@ -179,6 +180,9 @@ module.exports = async (req, res) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ chat_id: CHAT_ID, text: lines.join("\n") })
       });
+      // Remember it: this ping (name, phone last-4, click_id) is the message
+      // people reply to — "what's Kevin's number?" is unanswerable without it.
+      await chatlog.record(CHAT_ID, { role: "bot", name: "leo_bot", text: lines.join("\n") });
     } catch (_) {}
   }
 

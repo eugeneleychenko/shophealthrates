@@ -100,6 +100,20 @@ module.exports = async (req, res) => {
     return res.status(200).send("help handled");
   }
 
+  // Handle /forget locally — wipe this chat's remembered messages. The manual
+  // override when something gets pasted that shouldn't be retained. Deliberately
+  // local (no Actions round trip) so it takes effect immediately.
+  if (/^\/forget\b/i.test(text)) {
+    const wiped = await chatlog.forget(chatId);
+    await tgSend(
+      chatId,
+      wiped
+        ? "🧹 Forgotten — I've wiped the recent messages I was remembering for this chat."
+        : "🧹 Nothing to forget — memory is off or unreachable right now."
+    );
+    return res.status(200).send("forget handled");
+  }
+
   // Handle /diagnose locally — no GitHub Actions needed
   if (/^\/diagnose\b/i.test(text)) {
     const arg = text.replace(/^\/diagnose(@\w+)?/i, "").trim();
@@ -247,7 +261,14 @@ module.exports = async (req, res) => {
       body: JSON.stringify({
         event_type: "telegram-change-request",
         client_payload: {
-          request,
+          // withReplyContext is applied HERE, at the payload boundary — never
+          // where `request` is built. The guards above (`if (!request)` and the
+          // anchored /^(stop|cancel)$/ kill switch) both test `request`, and
+          // appending "\n\n[Context — …]" to it would stop `stop` from matching:
+          // instead of cancelling a running change, "stop" would be dispatched
+          // to the code agent AS a change request. Keep those guards reading the
+          // raw string.
+          request: withReplyContext(request),
           mode,
           chat_id: chatId,
           message_id: msg.message_id,
@@ -284,13 +305,29 @@ async function tgReact(chatId, messageId, emoji) {
   }
 }
 
+// Transient "working on it" acks. They'd fill the memory window with noise the
+// agent can't use — the useful record is the ANSWER, which is sent later by a
+// workflow. Warning/error strings (⚠️ 🛑) are deliberately NOT filtered: "couldn't
+// start the sales report" is real context for a follow-up.
+const ACK_NOISE = /^(🔎|🧾|⚙️)/u;
+
 async function tgSend(chatId, text) {
   try {
-    await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text }),
-    });
+    // Run the store write IN PARALLEL with the Telegram POST, not after it.
+    // Telegram takes 100-250ms and Upstash 10-40ms, so Promise.all costs the
+    // max, not the sum — recording is effectively free. It also completes before
+    // this function returns, so it is never in the post-res.send() freeze window
+    // that Vercel kills. Do not "optimise" this into a buffer flushed later.
+    await Promise.all([
+      fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: chatId, text }),
+      }),
+      ACK_NOISE.test(text)
+        ? Promise.resolve()
+        : chatlog.record(chatId, { role: "bot", name: "leo_bot", text: text }),
+    ]);
   } catch (_) {
     /* best effort — the Action will still report the outcome */
   }
@@ -596,6 +633,7 @@ async function handleHelp(chatId) {
     "/ask <question> — answer a question about the site/code, no change  (alias /q)",
     "/investigate <question> — force a deep data investigation  (alias /data)",
     '"stop" — cancel a running change',
+    "/forget — wipe the recent messages I remember for this chat",
     "",
     "/help — this message",
   ].join("\n");
