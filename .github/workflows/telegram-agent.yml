@@ -110,6 +110,10 @@ jobs:
           # requests with the default GITHUB_TOKEN, so the run's actor is
           # github-actions[bot] — allow it or the action refuses to start.
           allowed_bots: "github-actions"
+          # TEMPORARY (2026-08-19): surfaces which tool calls get denied so the
+          # allowlist above can be tuned. Turn back off once it's settled — this
+          # prints Claude's full transcript into a public Actions log.
+          show_full_output: true
           prompt: |
             A client (${{ env.FROM }}) sent this message in the Telegram group for
             the static marketing site in this repo. Read AGENTS.md first for full
@@ -176,8 +180,16 @@ jobs:
 
             3. CHANGE request too ambiguous to do safely: make NO changes; write a
                single clarifying question to ./_agent_inbox/REPLY.txt and stop.
+          # Keep Glob/Grep here: without them Claude burns turns falling back to
+          # Bash(ls) and eventually gives up without committing (runs on 2026-08-19
+          # logged 10-19 permission_denials_count and produced no commit).
+          # Bash(cp:*) matters specifically for "make another landing page" asks —
+          # copying an existing page is how the protected <head> tracking blocks
+          # survive, per AGENTS.md. Deliberately still NO sed/awk/python (they make
+          # full-file rewrites easy, which silently drop tracking blocks) and NO
+          # git push/checkout/reset (the workflow owns pushing).
           claude_args: >-
-            --allowedTools "Read,Edit,Write,Bash(git add:*),Bash(git commit:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(grep:*),Bash(ls:*),Bash(cat:*),Bash(agent-browser:*)"
+            --allowedTools "Read,Edit,Write,Glob,Grep,Bash(git add:*),Bash(git commit:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git rev-parse:*),Bash(grep:*),Bash(ls:*),Bash(cat:*),Bash(head:*),Bash(tail:*),Bash(wc:*),Bash(find:*),Bash(cp:*),Bash(mkdir:*),Bash(chmod:*),Bash(diff:*),Bash(agent-browser:*)"
 
       - name: Push, deploy, verify, and report back to Telegram
         if: always()
