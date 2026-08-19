@@ -16,6 +16,26 @@ const chatlog = require("./_chatlog");
 
 module.exports = async (req, res) => {
   if (req.method === "OPTIONS") return res.status(200).end();
+
+  // GET — read the transcript back. Exists so every rollout phase is verifiable
+  // with one curl, and so a wrong-looking agent answer can be diagnosed by
+  // looking at exactly what it was given. Same secret as the write path.
+  if (req.method === "GET") {
+    const expectedGet = (process.env.CHATLOG_SECRET || "").trim();
+    const givenGet = String((req.query && req.query.secret) || req.headers["x-chatlog-secret"] || "").trim();
+    if (!expectedGet) return res.status(503).json({ ok: false, error: "CHATLOG_SECRET not configured" });
+    if (givenGet !== expectedGet) return res.status(401).json({ ok: false, error: "bad secret" });
+    const cid = String((req.query && req.query.chat_id) || "").trim();
+    if (!cid) return res.status(400).json({ ok: false, error: "chat_id required" });
+    const transcript = await chatlog.history(cid);
+    return res.status(200).json({
+      ok: true,
+      chat_id: cid,
+      lines: transcript ? transcript.split("\n").length : 0,
+      transcript: transcript,
+    });
+  }
+
   if (req.method !== "POST") return res.status(200).send("ok");
 
   let data = {};

@@ -90,6 +90,12 @@ module.exports = async (req, res) => {
     messageId: msg.message_id,
   });
 
+  // Recent transcript for the LLM agents. Read AFTER recording so the current
+  // message is included — the agent should see the question it is answering in
+  // context. Empty string when the store is off/unreachable, so every consumer
+  // can pass it through unconditionally.
+  const historyText = await chatlog.history(chatId);
+
   // How was the bot addressed? This sets the intent hint passed downstream:
   //   /change <edit>   → make a code change + deploy
   //   /ask <question>  → answer a question, no code changes, no deploy
@@ -177,7 +183,7 @@ module.exports = async (req, res) => {
     const botUserName = process.env.TELEGRAM_BOT_USERNAME || "";
     const arg = text.replace(/^\/(investigate|data)(@\w+)?/i, "").split("@" + botUserName).join("").trim();
     const from = (msg.from && (msg.from.username || msg.from.first_name)) || "client";
-    await handleInvestigate(chatId, msg.message_id, withReplyContext(arg), from, "llm");
+    await handleInvestigate(chatId, msg.message_id, withReplyContext(arg), from, "llm", historyText);
     return res.status(200).send("investigate handled");
   }
 
@@ -208,7 +214,7 @@ module.exports = async (req, res) => {
     const q = text.split("@" + botUser).join("").trim();
     if (q) {
       const from = (msg.from && (msg.from.username || msg.from.first_name)) || "client";
-      await handleInvestigate(chatId, msg.message_id, withReplyContext(q), from, "llm");
+      await handleInvestigate(chatId, msg.message_id, withReplyContext(q), from, "llm", historyText);
       return res.status(200).send("investigate (auto) handled");
     }
   }
@@ -269,6 +275,7 @@ module.exports = async (req, res) => {
           // to the code agent AS a change request. Keep those guards reading the
           // raw string.
           request: withReplyContext(request),
+          history: historyText,
           mode,
           chat_id: chatId,
           message_id: msg.message_id,
@@ -454,7 +461,7 @@ async function handleSales(chatId, messageId, request, from) {
 // id resolver (scripts/lookup.mjs); mode="llm" (default) runs the read-only LLM data
 // investigator, which queries the live systems and reasons across them. It posts the
 // answer back to the chat itself.
-async function handleInvestigate(chatId, messageId, request, from, mode) {
+async function handleInvestigate(chatId, messageId, request, from, mode, history) {
   let dispatch;
   try {
     dispatch = await fetch(
@@ -469,7 +476,7 @@ async function handleInvestigate(chatId, messageId, request, from, mode) {
         },
         body: JSON.stringify({
           event_type: "telegram-investigate",
-          client_payload: { request: request || "", mode: mode || "llm", chat_id: chatId, message_id: messageId, from: from || "client" },
+          client_payload: { request: request || "", mode: mode || "llm", chat_id: chatId, message_id: messageId, from: from || "client", history: history || "" },
         }),
       }
     );

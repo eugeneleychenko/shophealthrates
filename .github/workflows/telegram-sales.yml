@@ -60,6 +60,7 @@ jobs:
       - name: Report result
         if: always()
         env:
+          CHATLOG_SECRET: ${{ secrets.CHATLOG_SECRET }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: |
           . .github/scripts/tg.sh

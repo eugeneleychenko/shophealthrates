@@ -217,6 +217,7 @@ jobs:
       - name: Reply to Telegram
         if: always()
         env:
+          CHATLOG_SECRET: ${{ secrets.CHATLOG_SECRET }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: |
           TG_NO_CHAT_HEADER="----- REPLY -----"
