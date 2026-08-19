@@ -265,6 +265,8 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: |
+          . .github/scripts/tg.sh
+
           echo "================== INVESTIGATE RESULT =================="
           echo "mode: $MODE · lookup outcome: ${{ steps.lookup.outcome }}"
           if [ -f _agent_inbox/REPLY.txt ]; then echo "----- REPLY -----"; cat _agent_inbox/REPLY.txt
@@ -273,20 +275,14 @@ jobs:
           if [ "${{ steps.detect.outputs.handoff }}" = "true" ]; then
             echo "Change request detected — the handoff job dispatches the code agent."
             [ -z "$CHAT_ID" ] && exit 0
-            curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
-              -H "Content-Type: application/json" \
-              -d "$(jq -n --arg c "$CHAT_ID" --arg t "🔧 On it — that's a site change, routing it to the code agent now. It will build it and report back here." '{chat_id:$c,text:$t}')" >/dev/null || true
+            send "🔧 On it — that's a site change, routing it to the code agent now. It will build it and report back here."
             exit 0
           fi
           [ -z "$CHAT_ID" ] && exit 0
           if [ -f _agent_inbox/REPLY.txt ] && [ -s _agent_inbox/REPLY.txt ]; then
-            curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
-              -H "Content-Type: application/json" \
-              -d "$(jq -n --arg c "$CHAT_ID" --arg t "$(cat _agent_inbox/REPLY.txt)" '{chat_id:$c,text:$t}')" >/dev/null || true
+            send "$(cat _agent_inbox/REPLY.txt)"
           else
-            curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
-              -H "Content-Type: application/json" \
-              -d "$(jq -n --arg c "$CHAT_ID" --arg t "🤔 I couldn't complete that investigation automatically — Eugene will check the run logs." '{chat_id:$c,text:$t}')" >/dev/null || true
+            send "🤔 I couldn't complete that investigation automatically — Eugene will check the run logs."
           fi
 
   # Re-dispatch a mis-routed site-change request to the code-change agent

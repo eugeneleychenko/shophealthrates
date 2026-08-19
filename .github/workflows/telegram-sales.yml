@@ -62,6 +62,8 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: |
+          . .github/scripts/tg.sh
+
           echo "===================== SALES RESULT ====================="
           echo "script outcome: ${{ steps.sales.outcome }}"
           if [ -f _agent_inbox/REPLY.txt ]; then
@@ -72,7 +74,5 @@ jobs:
           echo "======================================================="
 
           if [ -n "$CHAT_ID" ] && [ -f _agent_inbox/REPLY.txt ]; then
-            curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
-              -H "Content-Type: application/json" \
-              -d "$(jq -n --arg c "$CHAT_ID" --arg t "$(cat _agent_inbox/REPLY.txt)" '{chat_id:$c, text:$t}')" >/dev/null || true
+            send "$(cat _agent_inbox/REPLY.txt)"
           fi

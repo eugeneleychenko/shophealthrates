@@ -198,26 +198,7 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           GH_PUSH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          send() {
-            [ -z "$CHAT_ID" ] && { echo "$1"; return; }
-            curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
-              -H "Content-Type: application/json" \
-              -d "$(jq -n --arg c "$CHAT_ID" --arg t "$1" '{chat_id:$c, text:$t}')" >/dev/null
-          }
-
-          react() {
-            [ -z "$CHAT_ID" ] || [ -z "$MESSAGE_ID" ] && return
-            curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setMessageReaction" \
-              -H "Content-Type: application/json" \
-              -d "$(jq -n --arg c "$CHAT_ID" --arg m "$MESSAGE_ID" --arg e "$1" \
-                '{chat_id:$c, message_id:($m|tonumber), reaction:[{type:"emoji",emoji:$e}]}')" >/dev/null
-          }
-
-          send_photo() {
-            [ -z "$CHAT_ID" ] && return
-            curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendPhoto" \
-              -F "chat_id=$CHAT_ID" -F "photo=@$1" -F "caption=$2" >/dev/null
-          }
+          . .github/scripts/tg.sh
 
           # 1) Claude wrote a reply — an answer to a question, or a clarifying
           #    question for an ambiguous edit. Send it verbatim; never deploy.
