@@ -50,13 +50,36 @@ What QuinStreet configures on their side (send Lindsy the external doc, not this
 ```
 https://shophealthrates.com/quick-quote.html
   ?token=$prefilltoken$
-  &click_key=<QuinStreet click-key macro>
-  &sub_id=<QuinStreet sub-id / source macro>
-  &utm_source=quinstreet&utm_medium=clickwall&utm_campaign=insure_com
+  &click_key=$clickkey$
+  &sub_id=$source$
+  &qs_var1=$var1$
+  &qs_var2=$var2$
+  &qs_campaign_id=$campaignid$
+  &qs_creative_id=$creativeid$
+  &devicetype=$devicetype$
+  &bid=$bid$
+  &leadid=$leadid$
+  &zip=$zc$
+  &gender=$gender$
+  &income=$household_income$
+  &utm_source=quinstreet
+  &utm_medium=clickwall
+  &utm_campaign=insure_com
 ```
 
 - `$prefilltoken$` is the only macro name we know for certain (it's in the spec). It is replaced with a UUID **when publisher data exists**; otherwise it may resolve empty or be dropped.
-- The click-key and sub-id macro names are **still unknown** — Lindsy owes us the macro list. That's why the page accepts aliases (below) rather than a single hard-coded name.
+- Macro list received 2026-08-20 (`docs/qs_table.tsv`). Param names are ours; QuinStreet substitutes the macro values. Mapping:
+
+| Our param | QuinStreet macro | Why |
+|---|---|---|
+| `click_key` | `$clickkey$` | conversion join key |
+| `sub_id` | `$source$` | publisher (encrypted affiliate key) — source-level reporting |
+| `qs_var1` / `qs_var2` | `$var1$` / `$var2$` | publisher sub-ids |
+| `qs_campaign_id` / `qs_creative_id` | `$campaignid$` / `$creativeid$` | QMP campaign / creative |
+| `devicetype`, `bid` | `$devicetype$`, `$bid$` | diagnostics |
+| `leadid` | `$leadid$` | Jornaya lead id |
+| `zip`, `gender`, `income` | `$zc$`, `$gender$`, `$household_income$` | seed the form even without a prefill token |
+
 - Build the URL as long as you like; extra macros are free. Anything we don't recognize is ignored.
 
 ### URL param aliases (case-insensitive)
@@ -68,7 +91,14 @@ The page accepts any of these spellings and normalizes into one sessionStorage k
 | `token`, `pf`, `prefilltoken`, `prefill_token` | `qs_token` | Prefill token (UUID) |
 | `click_key`, `clickkey`, `ck`, `qs_click_key` | `qs_click_key` | **Conversion join key** — the one field we must persist |
 | `sub_id`, `subid`, `qs_sub_id`, `src_id`, `source_id` | `qs_sub_id` | Publisher / source id |
-| `source`, `qs_source` | `qs_source` | Source label |
+| `source`, `qs_source` | `qs_source` | Source label (unused in the URL today) |
+| `qs_var1`, `var1` / `qs_var2`, `var2` | `qs_var1` / `qs_var2` | Publisher sub-ids |
+| `qs_campaign_id`, `qs_campaignid` / `qs_creative_id`, `qs_creativeid` | `qs_campaign_id` / `qs_creative_id` | QMP ids — deliberately NOT `utm_campaignid`, which the page already maps to Google Ads `Campaign_ID` |
+| `qs_device`, `devicetype` / `qs_bid`, `bid` | `qs_device` / `qs_bid` | Diagnostics |
+| `leadid`, `jornaya_leadid`, `qs_leadid` | `qs_leadid` | Jornaya lead id |
+| `gender`, `qs_gender` | `qs_gender` | `Male`/`Female` → Boberdoo `Gender` when the prefill API didn't supply one |
+| `income`, `household_income`, `qs_income` | `qs_income` | Seeds the income field (raw number) when empty — works with no prefill token |
+| `zip` | *(read directly by submit)* | `$zc$` → Boberdoo `Zip` |
 
 The existing UTM/tracking-capture block on `quick-quote.html` (a **protected tracking code** — see [AGENTS.md](../../AGENTS.md#protected-tracking-codes--do-not-modify)) fires only on `gclid`/`cpid`/`utm_source`/`wbraid`/`gbraid`. Its condition is widened minimally (`|| params.has('token') || params.has('click_key') || params.has('clickkey')`) and the QuinStreet capture lives in a **separate new `<script>` immediately after it** — never inside the guard comments.
 
@@ -191,6 +221,10 @@ Unknown keys are ignored by Boberdoo's `pingPostLead`, so the page can send thes
 | `QS_Click_Key` | QuinStreet click key (32 chars) | The join key for conversion reporting and for any Boberdoo-side report Lindsy asks for. **Do NOT reuse `Sub_ID`** — that holds the ClickFlare `click_id` for paid search. |
 | `QS_Sub_ID` | QuinStreet publisher/source id | Lets Misha see performance per publisher inside Boberdoo. |
 | `QS_Source` | Source label | Human-readable companion to `QS_Sub_ID`. |
+| `QS_Var1`, `QS_Var2` | `$var1$`, `$var2$` | Publisher sub-ids. |
+| `QS_Campaign_ID`, `QS_Creative_ID` | QMP campaign / creative ids | Separate from Google's `Campaign_ID`/`Ad_ID`. |
+| `QS_Device`, `QS_Bid` | device type, cpc | Diagnostics. |
+| `Jornaya_Lead_ID` | `$leadid$` | Placeholder name — Misha to confirm the Boberdoo Jornaya field name. |
 | `Household_Income_Raw` | Exactly what the consumer typed / QuinStreet sent (e.g. `55000`, `39999`) | The income input is now free text; `Estimated_Household_Income` still carries the mapped bracket, so agents keep the exact figure alongside it. |
 
 **Optional — a separate SRC source key.** Today every quick-quote lead posts `SRC: "shophealthratescomenew"`. The page holds this in a top-level const `QQ_SRC_QUINSTREET` set to that same value, so **today's behavior is unchanged**. Once Misha creates a dedicated Boberdoo source (e.g. `shophealthratesquinstreet`), flip the const — that one edit segments QuinStreet traffic in every Boberdoo report without touching anything else.

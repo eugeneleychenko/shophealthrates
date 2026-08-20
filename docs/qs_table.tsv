@@ -1,0 +1,23 @@
+URL Macro	Description	Format
+$source$	Numeric publisher identifier	Replaces with Encrypted Affiliate Key
+$segm$	Married	y (yes) / n (no) / u (unknown)
+$gender$	Gender	Male/Female
+$devicetype$	Device type	Desktop/Mobile/Tablet
+$campaignid$	Qmp Campaign Id	Numeric
+$creativeid$	Qmp Creative Id	Numeric
+$creativename$	Qmp Creative Name	string
+$household_income$	Household income	Numeric
+$tobacco_use$	Tobacco use	y (yes) / n (no) / u (unknown)
+$medical_condition$	Has Major medical condition	y (yes) / n (no) / u (unknown)
+$bid$	Bid amount / cpc	Numeric
+$position$	Rank 	Numeric
+$var1$	publisher subid	string
+$var2$	publisher subid 2	string
+$city$	City 	string
+$zc$	Zip Code	
+$ssc$	State Code	2-char postal code
+$state$	State name	full state name
+$county$	County	
+$clickkey$	ClickKey	string
+$leadid$	Jornaya Lead Id	string
+$customerid$	Advertiser identifier	Numeric

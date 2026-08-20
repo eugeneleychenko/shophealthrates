@@ -160,14 +160,25 @@ select.qq-select{appearance:auto;-webkit-appearance:menulist;cursor:pointer;}
 <!-- QuinStreet (Next Insure / Insure.com) click + source capture.
      Non-PII URL params only. Kept OUTSIDE the tracking guard block above on purpose:
      it is additive and must never be able to affect the ClickFlare/Ringba scripts.
-     Param names from QuinStreet are not final yet — add aliases to the lists below. -->
+     Param names are OURS; QuinStreet fills the values with their macros (docs/qs_table.tsv,
+     docs/integrations/quinstreet.md). `zip` is read directly by submit, so `zip=$zc$` needs
+     no entry here. -->
 <script>
 (function() {
     var QS_ALIASES = {
-        qs_token:     ['token', 'pf', 'prefilltoken', 'prefill_token'],
-        qs_click_key: ['click_key', 'clickkey', 'ck', 'qs_click_key'],
-        qs_sub_id:    ['sub_id', 'subid', 'qs_sub_id', 'src_id', 'source_id'],
-        qs_source:    ['source', 'qs_source']
+        qs_token:       ['token', 'pf', 'prefilltoken', 'prefill_token'],
+        qs_click_key:   ['click_key', 'clickkey', 'ck', 'qs_click_key'],          // $clickkey$
+        qs_sub_id:      ['sub_id', 'subid', 'qs_sub_id', 'src_id', 'source_id'],  // $source$ (publisher)
+        qs_source:      ['source', 'qs_source'],
+        qs_var1:        ['qs_var1', 'var1'],                                      // $var1$ publisher subid
+        qs_var2:        ['qs_var2', 'var2'],                                      // $var2$ publisher subid 2
+        qs_campaign_id: ['qs_campaign_id', 'qs_campaignid'],                      // $campaignid$ (NOT utm_campaignid — that's Google Ads)
+        qs_creative_id: ['qs_creative_id', 'qs_creativeid'],                      // $creativeid$
+        qs_device:      ['qs_device', 'devicetype'],                              // $devicetype$
+        qs_bid:         ['qs_bid', 'bid'],                                        // $bid$ cpc
+        qs_leadid:      ['leadid', 'jornaya_leadid', 'qs_leadid'],                // $leadid$ Jornaya
+        qs_gender:      ['gender', 'qs_gender'],                                  // $gender$ Male/Female — form fallback when no token
+        qs_income:      ['income', 'household_income', 'qs_income']               // $household_income$ numeric — form fallback when no token
     };
     try {
         var params = new URLSearchParams(window.location.search);
@@ -613,6 +624,15 @@ function submitQuickQuote(e) {
         var qsClickKey = qqSsGet('qs_click_key') || '';
         var qsSubId = qqSsGet('qs_sub_id') || '';
         var qsSource = qqSsGet('qs_source') || '';
+        var qsVar1 = qqSsGet('qs_var1') || '';
+        var qsVar2 = qqSsGet('qs_var2') || '';
+        var qsCampaignId = qqSsGet('qs_campaign_id') || '';
+        var qsCreativeId = qqSsGet('qs_creative_id') || '';
+        var qsDevice = qqSsGet('qs_device') || '';
+        var qsBid = qqSsGet('qs_bid') || '';
+        var qsLeadId = qqSsGet('qs_leadid') || '';
+        // Gender: prefill API wins, else the $gender$ URL macro (Male/Female)
+        var genderVal = qqPrefillGender || ((/^(male|female)$/i.test(qqSsGet('qs_gender') || '')) ? (qqSsGet('qs_gender')[0].toUpperCase() + qqSsGet('qs_gender').slice(1).toLowerCase()) : '');
 
         // Get tracking params from sessionStorage (captured on landing)
         var landingUrl = qqSsGet('landing_url') || window.location.href;
@@ -649,7 +669,7 @@ function submitQuickQuote(e) {
                 Address: addressVal,
                 Zip: zip,
                 DOB: dob,
-                Gender: qqPrefillGender,
+                Gender: genderVal,
                 Household_Size: householdSize,
                 Estimated_Household_Income: incomeVal,
                 // New field — Misha must create it in Boberdoo; unknown keys are ignored
@@ -662,7 +682,14 @@ function submitQuickQuote(e) {
                 // Sub_ID above stays the ClickFlare click_id; these are separate.
                 QS_Click_Key: qsClickKey,
                 QS_Sub_ID: qsSubId,
-                QS_Source: qsSource
+                QS_Source: qsSource,
+                QS_Var1: qsVar1,
+                QS_Var2: qsVar2,
+                QS_Campaign_ID: qsCampaignId,
+                QS_Creative_ID: qsCreativeId,
+                QS_Device: qsDevice,
+                QS_Bid: qsBid,
+                Jornaya_Lead_ID: qsLeadId
             }
         };
 
@@ -777,7 +804,6 @@ function qqFillPhone(val){
     } catch (_) {}
     if (token) qqSsSet('qs_token', token);
     if (!token) token = qqSsGet('qs_token') || '';
-    if (!token) return;
 
     // Strip the token from the URL — it is single-use-ish and shouldn't be shared/reloaded.
     // The sessionStorage copy survives.
@@ -792,6 +818,16 @@ function qqFillPhone(val){
         }
     } catch (_) {}
 
+    // URL-macro fallback (no PII): $household_income$ can seed the income field even
+    // when there is no prefill token. Fills only if empty; the token prefill below
+    // also only fills empty fields, so whichever arrives first wins harmlessly.
+    try {
+        var urlIncome = qqSsGet('qs_income');
+        // Raw number on purpose (agents see the real figure); submit derives the bracket.
+        if (urlIncome) qqFillInput('qqIncome', String(urlIncome).replace(/[^0-9.]/g, '') || urlIncome);
+    } catch (_) {}
+
+    if (!token) return; // no prefill token — URL fallback above is all we can do
     if (qqSsGet('qs_prefill_done') === '1') return; // already fetched in this tab
 
     try {

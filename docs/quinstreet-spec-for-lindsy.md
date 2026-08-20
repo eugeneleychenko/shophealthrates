@@ -9,21 +9,24 @@ Following up on today's call. Landing page is live at **https://shophealthrates.
 Please configure our listing URL as:
 
 ```
-https://shophealthrates.com/quick-quote.html?token=$prefilltoken$&click_key=<CLICK KEY MACRO>&sub_id=<SUB ID MACRO>&utm_source=quinstreet&utm_medium=clickwall&utm_campaign=insure_com
+https://shophealthrates.com/quick-quote.html?token=$prefilltoken$&click_key=$clickkey$&sub_id=$source$&qs_var1=$var1$&qs_var2=$var2$&qs_campaign_id=$campaignid$&qs_creative_id=$creativeid$&devicetype=$devicetype$&bid=$bid$&leadid=$leadid$&zip=$zc$&gender=$gender$&income=$household_income$&utm_source=quinstreet&utm_medium=clickwall&utm_campaign=insure_com
 ```
 
 Please keep the UTM values exactly as written — that's how we segment your traffic in reporting.
 
-We read these parameter names (any spelling below works, case-insensitive), so pick whichever matches your macros:
+Built from the macro list you sent:
 
-| What | Parameter names we accept |
-|---|---|
-| Prefill token | `token`, `pf`, `prefilltoken`, `prefill_token` |
-| Click key | `click_key`, `clickkey`, `ck` |
-| Sub id / source id | `sub_id`, `subid`, `src_id`, `source_id` |
-| Source label | `source` |
+| Our param | QuinStreet macro | Why |
+|---|---|---|
+| `click_key` | `$clickkey$` | conversion join key |
+| `sub_id` | `$source$` | publisher (encrypted affiliate key) — source-level reporting |
+| `qs_var1` / `qs_var2` | `$var1$` / `$var2$` | publisher sub-ids |
+| `qs_campaign_id` / `qs_creative_id` | `$campaignid$` / `$creativeid$` | QMP campaign / creative |
+| `devicetype`, `bid` | `$devicetype$`, `$bid$` | diagnostics |
+| `leadid` | `$leadid$` | Jornaya lead id |
+| `zip`, `gender`, `income` | `$zc$`, `$gender$`, `$household_income$` | seed the form even without a prefill token |
 
-Feel free to append any other non-PII macros — extra params are harmless, and once we see your full macro list we'll tell you which additional ones we'd like stored.
+Everything else on the list (`$segm$`, `$tobacco_use$`, `$medical_condition$`, `$position$`, city/state/county, `$customerid$`) we don't need right now.
 
 ## 2. Prefill — we'll pull, no endpoint needed on our side
 
@@ -56,7 +59,7 @@ Both use a stable `clientUniqueConversionId` (`quote-<clickKey>` / `sale-<lead i
 
 1. **`X-Tenant-Id`** for the conversion API — nothing can fire without it.
 2. **Staging access** (`nextinsure.quinstage.com`) plus a **test prefill token** that returns sample data, so we can validate before going live.
-3. **The macro list** you mentioned — specifically the **click-key** and **sub-id** macro names, plus anything else worth passing.
+3. ~~The macro list~~ — received, thanks; the URL above uses it.
 4. **Phone-validation vendor** you or your publishers use — and whether it screens out **VoIP** numbers. We want to avoid paying twice for the same check.
 
 Once we have (1) and (2) we can be testing the same day. Thanks!
