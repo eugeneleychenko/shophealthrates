@@ -52,6 +52,8 @@ Never commit code that drops a tracking block.
 │   ├── log-lead.js         # Logs each lead to Google Sheet (Sheety) + missing-click_id alert
 │   ├── enrollment.js       # Sale/enrollment intake (Convoso webhook et al.): resolves truncated Sub_ID/email → full click_id, dedupes, logs event=enrollment + Telegram ping; ClickFlare ct=sale fire behind ENROLL_FIRE_CF
 │   ├── daily-summary.js    # 9am ET cron: daily lead summary + ClickFlare health check
+│   ├── prefill.js          # GET /api/prefill?pf=<token> — pulls QuinStreet prefill PII for quick-quote.html (never 5xx, no PII logged)
+│   ├── _quinstreet.js      # QuinStreet shared helpers: incomeToBracket() + postConversion() S2S. `_` = NOT routed by Vercel
 │   ├── _chatlog.js         # Conversation memory (Upstash REST). `_` = NOT routed by Vercel
 │   └── chatlog-ingest.js   # Authed ingest for bot replies sent from GitHub Actions
 ├── scripts/                # call-check-api.mjs, clickflare-api.mjs, sales-report.mjs, lookup.mjs, ringba-totp.js (not deployed)
@@ -68,6 +70,7 @@ Never commit code that drops a tracking block.
 - **Quiz flow**: `index.html` → `quiz.html?zip=<value>` → `thank-you.html`.
 - **No framework** — vanilla HTML/JS. jQuery loads on index/thank-you/privacy/term, but **never on `quiz.html`**.
 - **Fonts** are self-hosted in `css/` via `@font-face` in `style.css`.
+- **`quick-quote.html`** is the QuinStreet/Insure.com landing page (single-shot prefilled form) — see [docs/integrations/quinstreet.md](docs/integrations/quinstreet.md).
 
 ## Telegram Bot Commands
 
@@ -163,6 +166,7 @@ The bot remembers the **last 25 messages per chat** so follow-ups like "the url 
 - **`repository_dispatch` / `workflow_dispatch` only run from `main`** — the Telegram workflow files must stay on the default branch.
 - **Boberdoo blocks some webhook hosts** in its UI; the Admin API is **IP-whitelisted to `209.122.209.0/24`** (won't work from arbitrary CLIs). See [docs/integrations/boberdoo-clickflare.md](docs/integrations/boberdoo-clickflare.md).
 - **`click_id ≠ cpid` is EXPECTED**, not a bug — `cpid` is ClickFlare's CampaignID, not a click id. See [docs/call-check.md](docs/call-check.md).
+- **QuinStreet prefill is a PULL** — `quick-quote.html` reads `?token=` and our `/api/prefill` GETs their API; there is no inbound PII endpoint. See [docs/integrations/quinstreet.md](docs/integrations/quinstreet.md).
 
 ## Further Documentation
 
@@ -173,6 +177,7 @@ Operational runbooks (not deployed; `*.md` excluded by `.vercelignore`):
 - [docs/integrations/boberdoo-clickflare.md](docs/integrations/boberdoo-clickflare.md) — Boberdoo ↔ ClickFlare lead postback; **Boberdoo Admin API key & `getLeadDetails`**; webhooks 53/55/57.
 - [docs/integrations/ringba-clickflare.md](docs/integrations/ringba-clickflare.md) — Ringba ↔ ClickFlare phone-call (U65) pixel, targets, campaign config.
 - [docs/integrations/clickflare-googleads.md](docs/integrations/clickflare-googleads.md) — ClickFlare → Google Ads "Qualified" failing "Too short." (empty gclid) diagnosis + fix.
+- [docs/integrations/quinstreet.md](docs/integrations/quinstreet.md) — QuinStreet/Insure.com ↔ `quick-quote.html`: pull-model prefill (`/api/prefill`), conversion S2S (quote/sale), env vars, Boberdoo fields for Misha, open items.
 - [docs/telegram-agent.md](docs/telegram-agent.md) — Claude Code web remote management, the `/change`·`/ask` deploy agent, and `/ringba` MFA.
 - [docs/lead-logging.md](docs/lead-logging.md) — Lead logging to Google Sheet, `/diagnose`, alerts, daily summary, API access gaps.
 - [docs/call-check.md](docs/call-check.md) — `/check` call-conversion verification (the 5-hop chain) + reply format.

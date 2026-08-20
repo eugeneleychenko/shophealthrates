@@ -43,8 +43,6 @@
 .qq-input::placeholder{color:#8d8c8c;}
 .qq-input:focus{border-color:#1a56a0;}
 select.qq-select{appearance:auto;-webkit-appearance:menulist;cursor:pointer;}
-.qq-dob-row{display:flex;gap:10px;width:100%;clear:both;}
-.qq-dob-row .qq-select{flex:1;min-width:0;padding:0 8px;}
 .qq-input.input-error{border:2px solid #d93025;background:#fff8f7;}
 .qq-field-error{margin-top:14px;font-size:14px;font-weight:600;line-height:19px;color:#d93025;text-align:left;}
 .qq-field-error[hidden]{display:none;}
@@ -127,7 +125,7 @@ select.qq-select{appearance:auto;-webkit-appearance:menulist;cursor:pointer;}
     try {
         if (!sessionStorage.getItem('landing_url')) {
             var params = new URLSearchParams(window.location.search);
-            if (params.has('gclid') || params.has('cpid') || params.has('utm_source') || params.has('wbraid') || params.has('gbraid')) {
+            if (params.has('gclid') || params.has('cpid') || params.has('utm_source') || params.has('wbraid') || params.has('gbraid') || params.has('token') || params.has('click_key') || params.has('clickkey')) {
                 sessionStorage.setItem('landing_url', window.location.href);
                 params.forEach(function(value, key) {
                     sessionStorage.setItem('utm_' + key, value);
@@ -158,6 +156,38 @@ select.qq-select{appearance:auto;-webkit-appearance:menulist;cursor:pointer;}
 </script>
 
 <!-- ======================== END TRACKING CODES ======================== -->
+
+<!-- QuinStreet (Next Insure / Insure.com) click + source capture.
+     Non-PII URL params only. Kept OUTSIDE the tracking guard block above on purpose:
+     it is additive and must never be able to affect the ClickFlare/Ringba scripts.
+     Param names from QuinStreet are not final yet — add aliases to the lists below. -->
+<script>
+(function() {
+    var QS_ALIASES = {
+        qs_token:     ['token', 'pf', 'prefilltoken', 'prefill_token'],
+        qs_click_key: ['click_key', 'clickkey', 'ck', 'qs_click_key'],
+        qs_sub_id:    ['sub_id', 'subid', 'qs_sub_id', 'src_id', 'source_id'],
+        qs_source:    ['source', 'qs_source']
+    };
+    try {
+        var params = new URLSearchParams(window.location.search);
+        var lower = {};
+        params.forEach(function(value, key) {
+            if (value) lower[String(key).toLowerCase()] = value;
+        });
+        Object.keys(QS_ALIASES).forEach(function(storeKey) {
+            var names = QS_ALIASES[storeKey];
+            for (var i = 0; i < names.length; i++) {
+                var v = lower[names[i]];
+                if (v) {
+                    try { sessionStorage.setItem(storeKey, v); } catch (_) {}
+                    return; // first alias wins; move on to the next storage key
+                }
+            }
+        });
+    } catch (_) {} // URLSearchParams / sessionStorage throw when site data is blocked
+})();
+</script>
 
 <!-- TrustedForm -->
 <script type="text/javascript">
@@ -276,30 +306,8 @@ select.qq-select{appearance:auto;-webkit-appearance:menulist;cursor:pointer;}
                     </div>
 
                     <div class="qq-field">
-                        <label>Date Of Birth</label>
-                        <div class="qq-dob-row">
-                            <select id="qqDobMonth" class="qq-input qq-select">
-                                <option value="" disabled selected>Month</option>
-                                <option value="01">January</option>
-                                <option value="02">February</option>
-                                <option value="03">March</option>
-                                <option value="04">April</option>
-                                <option value="05">May</option>
-                                <option value="06">June</option>
-                                <option value="07">July</option>
-                                <option value="08">August</option>
-                                <option value="09">September</option>
-                                <option value="10">October</option>
-                                <option value="11">November</option>
-                                <option value="12">December</option>
-                            </select>
-                            <select id="qqDobDay" class="qq-input qq-select">
-                                <option value="" disabled selected>Day</option>
-                            </select>
-                            <select id="qqDobYear" class="qq-input qq-select">
-                                <option value="" disabled selected>Year</option>
-                            </select>
-                        </div>
+                        <label for="qqDob">Date Of Birth</label>
+                        <input type="text" id="qqDob" class="qq-input" inputmode="numeric" placeholder="MM/DD/YYYY" autocomplete="bday" maxlength="10">
                     </div>
 
                     <div class="qq-field">
@@ -316,15 +324,15 @@ select.qq-select{appearance:auto;-webkit-appearance:menulist;cursor:pointer;}
 
                     <div class="qq-field">
                         <label for="qqIncome">Annual Household Income</label>
-                        <select id="qqIncome" class="qq-input qq-select">
-                            <option value="" disabled selected>Select income range</option>
-                            <option value="$0-40,000">$0-40,000</option>
-                            <option value="$40,001-50,000">$40,001-50,000</option>
-                            <option value="$50,001-60,000">$50,001-60,000</option>
-                            <option value="$60,001-75,000">$60,001-75,000</option>
-                            <option value="$75,001-100,000">$75,001-100,000</option>
-                            <option value="$100,001-150,000+">$100,001-150,000+</option>
-                        </select>
+                        <input type="text" id="qqIncome" class="qq-input" inputmode="numeric" list="qqIncomeList" placeholder="e.g. 55,000 or pick a range" autocomplete="off">
+                        <datalist id="qqIncomeList">
+                            <option value="$0-40,000"></option>
+                            <option value="$40,001-50,000"></option>
+                            <option value="$50,001-60,000"></option>
+                            <option value="$60,001-75,000"></option>
+                            <option value="$75,001-100,000"></option>
+                            <option value="$100,001-150,000+"></option>
+                        </datalist>
                     </div>
 
                     <p class="qq-field-error" id="qqFormError" role="alert" hidden></p>
@@ -393,45 +401,23 @@ sex, age, or disability. Plan availability, coverage, and pricing vary by state 
 <!---------Script---------->
 <script type="text/javascript">
 
-// Populate DOB dropdowns
-(function() {
-    var monthSelect = document.getElementById("qqDobMonth");
-    var daySelect = document.getElementById("qqDobDay");
-    var yearSelect = document.getElementById("qqDobYear");
+// DOB auto-slash: MM/DD/YYYY as the user types digits.
+// Only reformats an all-digits/slashes value, so a pasted "1981-11-11" or
+// "November 11, 1981" is left alone for qqParseDob() to handle.
+document.addEventListener("input", function (e) {
+    var fld = e.target;
+    if (!fld || fld.id !== "qqDob") return;
+    if (/[^0-9\/]/.test(fld.value)) return;
 
-    function rebuildDays(){
-        var m = parseInt(monthSelect.value, 10);
-        var y = parseInt(yearSelect.value, 10) || 2000; // leap-friendly until a year is picked
-        var max = m ? new Date(y, m, 0).getDate() : 31;
-        var current = daySelect.value;
-        while (daySelect.options.length > 1) daySelect.remove(1);
-        for (var d = 1; d <= max; d++) {
-            var opt = document.createElement("option");
-            opt.value = d < 10 ? "0" + d : "" + d;
-            opt.textContent = d;
-            daySelect.appendChild(opt);
-        }
-        if (current && parseInt(current, 10) <= max) {
-            daySelect.value = current;
-        } else {
-            daySelect.selectedIndex = 0;
-        }
+    var digits = fld.value.replace(/\D/g, "").slice(0, 8);
+    var formatted = digits;
+    if (digits.length > 4) {
+        formatted = digits.slice(0, 2) + "/" + digits.slice(2, 4) + "/" + digits.slice(4);
+    } else if (digits.length > 2) {
+        formatted = digits.slice(0, 2) + "/" + digits.slice(2);
     }
-
-    rebuildDays();
-
-    var currentYear = new Date().getFullYear();
-    // consent language requires the applicant to be at least 18
-    for (var y = currentYear - 18; y >= currentYear - 100; y--) {
-        var opt = document.createElement("option");
-        opt.value = "" + y;
-        opt.textContent = y;
-        yearSelect.appendChild(opt);
-    }
-
-    monthSelect.addEventListener("change", rebuildDays);
-    yearSelect.addEventListener("change", rebuildDays);
-})();
+    if (fld.value !== formatted) fld.value = formatted;
+});
 
 // Phone number formatting
 document.addEventListener("input", function (e) {
@@ -460,15 +446,106 @@ document.addEventListener("input", function (e) {
 // =============================
 var QQ_API_KEY = "b04f5463d194e2227fe5ae4cbf9e586da2c2cb503601ae97bbf908c7d3e6c917";
 
+// Boberdoo source key. Misha must create a dedicated QuinStreet source in Boberdoo;
+// once it exists, flip this const to "shophealthratesquinstreet". Until then QuinStreet
+// traffic uses today's source so nothing in the live flow changes.
+var QQ_SRC_QUINSTREET = "shophealthratescomenew";
+var QQ_SRC_DEFAULT = "shophealthratescomenew";
+
+// Set by the prefill fetch below (QuinStreet gives us a zip/gender the form has no field for)
+var qqPrefillZip = '';
+var qqPrefillGender = '';
+
 function qqSsGet(k){ try { return sessionStorage.getItem(k); } catch (_) { return null; } }
+function qqSsSet(k, v){ try { sessionStorage.setItem(k, v); return true; } catch (_) { return false; } }
+
+// ---- Income ----------------------------------------------------------------
+// The 6 bracket strings the datalist offers (and what Boberdoo has always received).
+var QQ_INCOME_BRACKETS = ["$0-40,000", "$40,001-50,000", "$50,001-60,000", "$60,001-75,000", "$75,001-100,000", "$100,001-150,000+"];
+
+// MUST stay identical to incomeToBracket(n) in api/_quinstreet.js
+function incomeToBracket(n){
+    if (n === "" || n === null || n === undefined) return "";
+    var v = Number(n);
+    if (!isFinite(v) || v < 0) return "";
+    if (v <= 40000) return "$0-40,000";
+    if (v <= 50000) return "$40,001-50,000";
+    if (v <= 60000) return "$50,001-60,000";
+    if (v <= 75000) return "$60,001-75,000";
+    if (v <= 100000) return "$75,001-100,000";
+    return "$100,001-150,000+";
+}
+
+// Free-text income -> one of the 6 brackets, or "" when it can't be mapped.
+// Accepts an exact bracket string, "55k", "$55,000", "55000".
+function qqIncomeBracket(raw){
+    var s = String(raw === null || raw === undefined ? "" : raw).trim();
+    if (!s) return "";
+    for (var i = 0; i < QQ_INCOME_BRACKETS.length; i++) {
+        if (QQ_INCOME_BRACKETS[i] === s) return s;
+    }
+    var m = s.match(/^\$?\s*([0-9,]*\.?[0-9]+)\s*([kK])?\s*$/);
+    if (!m) return "";
+    var num = parseFloat(m[1].replace(/,/g, ""));
+    if (!isFinite(num)) return "";
+    if (m[2]) num *= 1000;
+    return incomeToBracket(num);
+}
+
+// ---- Date of birth ---------------------------------------------------------
+var QQ_MONTH_ABBR = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+
+// Tolerant DOB parser. Accepts MM/DD/YYYY, M/D/YY, YYYY-MM-DD, "Nov 11 1981",
+// "November 11, 1981", "11 Nov 1981". Returns null unless the value is a real
+// calendar date, not in the future, with age between 18 and 110.
+function qqParseDob(str){
+    if (str === null || str === undefined) return null;
+    var s = String(str).trim();
+    if (!s) return null;
+
+    var m = 0, d = 0, y = 0, mo, mt;
+    if ((mt = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/))) {                                   // YYYY-MM-DD
+        y = +mt[1]; m = +mt[2]; d = +mt[3];
+    } else if ((mt = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2}|\d{4})$/))) {          // M/D/YY(YY)
+        m = +mt[1]; d = +mt[2]; y = +mt[3];
+        if (mt[3].length === 2) {
+            var cy = new Date().getFullYear() % 100;
+            y = y <= cy ? 2000 + y : 1900 + y; // "81" -> 1981, "05" -> 2005
+        }
+    } else if ((mt = s.match(/^([A-Za-z]{3,9})\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})$/))) { // Mon D, YYYY
+        mo = QQ_MONTH_ABBR.indexOf(mt[1].slice(0, 3).toLowerCase());
+        if (mo < 0) return null;
+        m = mo + 1; d = +mt[2]; y = +mt[3];
+    } else if ((mt = s.match(/^(\d{1,2})\s+([A-Za-z]{3,9})\.?,?\s+(\d{4})$/))) {             // D Mon YYYY
+        mo = QQ_MONTH_ABBR.indexOf(mt[2].slice(0, 3).toLowerCase());
+        if (mo < 0) return null;
+        m = mo + 1; d = +mt[1]; y = +mt[3];
+    } else {
+        return null;
+    }
+
+    if (!m || !d || !y || m < 1 || m > 12 || d < 1 || d > 31) return null;
+
+    var dt = new Date(y, m - 1, d);
+    // rejects impossible days like 2/30 — Date rolls them over
+    if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return null;
+
+    var now = new Date();
+    if (dt > now) return null;
+
+    var age = now.getFullYear() - y;
+    var hadBirthday = (now.getMonth() > m - 1) || (now.getMonth() === m - 1 && now.getDate() >= d);
+    if (!hadBirthday) age--;
+    // consent language requires the applicant to be at least 18
+    if (age < 18 || age > 110) return null;
+
+    function pad(n){ return n < 10 ? "0" + n : "" + n; }
+    return { month: pad(m), day: pad(d), year: "" + y, mmddyyyy: pad(m) + "/" + pad(d) + "/" + y, age: age };
+}
 
 function qqDobValid(){
-    var m = parseInt(document.getElementById("qqDobMonth").value, 10);
-    var d = parseInt(document.getElementById("qqDobDay").value, 10);
-    var y = parseInt(document.getElementById("qqDobYear").value, 10);
-    if (!m || !d || !y) return false;
-    var dt = new Date(y, m - 1, d);
-    return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d && dt <= new Date();
+    var el = document.getElementById("qqDob");
+    return !!(el && qqParseDob(el.value));
 }
 
 function qqValidate(){
@@ -477,12 +554,10 @@ function qqValidate(){
     var phone = document.getElementById("qqPhone");
     var address = document.getElementById("qqAddress");
     var email = document.getElementById("qqEmail");
-    var dobMonth = document.getElementById("qqDobMonth");
-    var dobDay = document.getElementById("qqDobDay");
-    var dobYear = document.getElementById("qqDobYear");
+    var dob = document.getElementById("qqDob");
     var household = document.getElementById("qqHousehold");
     var income = document.getElementById("qqIncome");
-    var fields = [first, last, phone, address, email, dobMonth, dobDay, dobYear, household, income];
+    var fields = [first, last, phone, address, email, dob, household, income];
 
     fields.forEach(function(f){ f.classList.remove("input-error"); });
 
@@ -492,9 +567,9 @@ function qqValidate(){
     if (phone.value.replace(/\D/g, "").length !== 10) bad.push(phone);
     if (!address.value.trim()) bad.push(address);
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim())) bad.push(email);
-    if (!qqDobValid()) { bad.push(dobMonth); bad.push(dobDay); bad.push(dobYear); }
+    if (!qqDobValid()) bad.push(dob);
     if (!household.value) bad.push(household);
-    if (!income.value) bad.push(income);
+    if (!income.value.trim()) bad.push(income);
 
     bad.forEach(function(f){ f.classList.add("input-error"); });
     return bad.length === 0;
@@ -521,14 +596,23 @@ function submitQuickQuote(e) {
     var phoneVal = document.getElementById("qqPhone").value.replace(/\D/g, "");
     var addressVal = document.getElementById("qqAddress").value.trim();
     var emailVal = document.getElementById("qqEmail").value.trim();
-    var dob = document.getElementById("qqDobMonth").value + "/" + document.getElementById("qqDobDay").value + "/" + document.getElementById("qqDobYear").value;
+    var dobParsed = qqParseDob(document.getElementById("qqDob").value);
+    var dob = dobParsed ? dobParsed.mmddyyyy : ""; // Boberdoo contract: MM/DD/YYYY
     var householdSize = document.getElementById("qqHousehold").value;
-    var incomeVal = document.getElementById("qqIncome").value;
+    var incomeRaw = document.getElementById("qqIncome").value.trim();
+    var incomeBracket = qqIncomeBracket(incomeRaw);   // "" when the typed value can't be mapped
+    var incomeVal = incomeBracket || incomeRaw;       // what Boberdoo/Sheety receive
 
     try {
-        // Get zip from URL params (passed from ad click), or saved quiz session, else default
+        // Get zip from URL params (passed from ad click), the QuinStreet prefill,
+        // or a saved quiz session, else default
         var urlParams = new URLSearchParams(window.location.search);
-        var zip = urlParams.get("zip") || qqSsGet('quiz_zip') || "60610";
+        var zip = urlParams.get("zip") || qqPrefillZip || qqSsGet('quiz_zip') || "60610";
+
+        // QuinStreet click/source params (captured on landing; empty for all other traffic)
+        var qsClickKey = qqSsGet('qs_click_key') || '';
+        var qsSubId = qqSsGet('qs_sub_id') || '';
+        var qsSource = qqSsGet('qs_source') || '';
 
         // Get tracking params from sessionStorage (captured on landing)
         var landingUrl = qqSsGet('landing_url') || window.location.href;
@@ -554,7 +638,7 @@ function submitQuickQuote(e) {
                 Key: QQ_API_KEY,
                 API_Action: "pingPostLead",
                 TYPE: "33",
-                SRC: "shophealthratescomenew",
+                SRC: qsClickKey ? QQ_SRC_QUINSTREET : QQ_SRC_DEFAULT,
                 IP_Address: "75.2.92.149",
                 Landing_Page: landingUrl,
                 Sub_ID: subId,
@@ -565,13 +649,20 @@ function submitQuickQuote(e) {
                 Address: addressVal,
                 Zip: zip,
                 DOB: dob,
-                Gender: "",
+                Gender: qqPrefillGender,
                 Household_Size: householdSize,
                 Estimated_Household_Income: incomeVal,
+                // New field — Misha must create it in Boberdoo; unknown keys are ignored
+                Household_Income_Raw: incomeRaw,
                 Trusted_Form_URL: tfCertUrl,
                 Campaign_ID: campaignId,
                 Ad_ID: adId,
-                Keyword: keyword
+                Keyword: keyword,
+                // QuinStreet passthrough — placeholder field names, Misha to create in Boberdoo.
+                // Sub_ID above stays the ClickFlare click_id; these are separate.
+                QS_Click_Key: qsClickKey,
+                QS_Sub_ID: qsSubId,
+                QS_Source: qsSource
             }
         };
 
@@ -597,7 +688,7 @@ function submitQuickQuote(e) {
         // Fire ClickFlare lead conversion client-side (full click_id, bypasses Boberdoo truncation).
         // Suppress the lowest income bracket ($0-40,000) per partner request, and only fire when
         // we have a REAL cf_click_id cookie — never the cpid fallback (fails Google Ads "Too short.")
-        if (hasRealClickId && incomeVal !== '$0-40,000') {
+        if (hasRealClickId && incomeBracket !== '$0-40,000') {
             var img = new Image();
             img.src = 'https://leosourceclick.com/cf/cv?click_id=' + encodeURIComponent(subId);
         }
@@ -613,6 +704,10 @@ function submitQuickQuote(e) {
                 zip: zip,
                 first_name: firstVal,
                 last_name: lastVal,
+                qs_click_key: qsClickKey,
+                qs_sub_id: qsSubId,
+                qs_source: qsSource,
+                page: "quick-quote",
                 timestamp: new Date().toISOString()
             }));
         } catch (_) {}
@@ -628,6 +723,110 @@ function submitQuickQuote(e) {
 
     return false;
 }
+
+// =============================
+// QUINSTREET PREFILL (silent — never blocks or breaks the form)
+// =============================
+
+// Fills a text input only when it is empty; never overwrites what the user typed.
+function qqFillInput(id, val){
+    var el = document.getElementById(id);
+    if (!el || val === null || val === undefined) return 0;
+    var v = String(val).trim();
+    if (!v) return 0;
+    if (el.value && el.value.trim()) return 0;
+    el.value = v;
+    return 1;
+}
+
+// Same, for a <select>: only accepts a value that is actually an option.
+function qqFillSelect(id, val){
+    var el = document.getElementById(id);
+    if (!el || val === null || val === undefined) return 0;
+    var v = String(val).trim();
+    if (!v || el.value) return 0;
+    for (var i = 0; i < el.options.length; i++) {
+        if (el.options[i].value === v) { el.value = v; return 1; }
+    }
+    return 0;
+}
+
+// Phone gets written as raw digits then run through the page's own input mask,
+// so a prefilled number looks exactly like a typed one.
+function qqFillPhone(val){
+    var el = document.getElementById('qqPhone');
+    if (!el || !val) return 0;
+    if (el.value && el.value.trim()) return 0;
+    var digits = String(val).replace(/\D/g, "");
+    if (digits.length === 11 && digits.charAt(0) === "1") digits = digits.slice(1);
+    if (digits.length !== 10) return 0;
+    el.value = digits;
+    try {
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+    } catch (_) {
+        el.value = digits.replace(/(\d{3})(\d{3})(\d+)/, "$1-$2-$3");
+    }
+    return 1;
+}
+
+(function qqPrefill(){
+    var token = '';
+    try {
+        var p = new URLSearchParams(window.location.search);
+        token = p.get('token') || p.get('pf') || p.get('prefilltoken') || p.get('prefill_token') || '';
+    } catch (_) {}
+    if (token) qqSsSet('qs_token', token);
+    if (!token) token = qqSsGet('qs_token') || '';
+    if (!token) return;
+
+    // Strip the token from the URL — it is single-use-ish and shouldn't be shared/reloaded.
+    // The sessionStorage copy survives.
+    try {
+        var u = new URL(window.location.href);
+        var stripped = false;
+        ['token', 'pf', 'prefilltoken', 'prefill_token'].forEach(function(k){
+            if (u.searchParams.has(k)) { u.searchParams.delete(k); stripped = true; }
+        });
+        if (stripped && window.history && window.history.replaceState) {
+            window.history.replaceState(null, '', u.pathname + (u.search ? u.search : '') + u.hash);
+        }
+    } catch (_) {}
+
+    if (qqSsGet('qs_prefill_done') === '1') return; // already fetched in this tab
+
+    try {
+        fetch('/api/prefill?pf=' + encodeURIComponent(token), { credentials: 'same-origin' })
+            .then(function(r){ return r && r.ok ? r.json() : null; })
+            .then(function(data){
+                if (!data || !data.ok) return;
+                qqSsSet('qs_prefill_done', '1');
+
+                // Not form fields — carried into the Boberdoo payload at submit time
+                if (data.zip) qqPrefillZip = String(data.zip).trim();
+                if (data.gender) qqPrefillGender = String(data.gender).trim();
+
+                var filled = 0;
+                filled += qqFillInput('qqFirstName', data.first);
+                filled += qqFillInput('qqLastName', data.last);
+                filled += qqFillPhone(data.phone);
+                filled += qqFillInput('qqAddress', data.address);
+                filled += qqFillInput('qqEmail', data.email);
+                filled += qqFillSelect('qqHousehold', data.householdSize);
+                filled += qqFillInput('qqIncome', data.incomeBracket || data.income);
+
+                var parsedDob = qqParseDob(data.dob);
+                if (parsedDob) filled += qqFillInput('qqDob', parsedDob.mmddyyyy);
+
+                var form = document.getElementById('quickQuoteForm');
+                if (form && filled > 0) form.setAttribute('data-prefilled', '1');
+                if (filled >= 3) {
+                    var heading = document.querySelector('.qq-form-heading');
+                    if (heading) heading.textContent = 'Confirm Your Details';
+                }
+            })
+            .catch(function(){}); // silent: prefill is a bonus, never a blocker
+    } catch (_) {}
+})();
 </script>
 
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC0J3P6QmDKE22gr7F3iKrcwsNHUEsnip0&libraries=places&callback=initQqAutocomplete" async defer></script>

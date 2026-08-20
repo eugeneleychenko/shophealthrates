@@ -17,12 +17,19 @@
 // prefix-match here mirrors scripts/lookup.mjs (keep in sync).
 //
 // Env: ENROLL_SECRET (required; fail closed), SHEETY_URL, TELEGRAM_BOT_TOKEN,
-//      ALLOWED_CHAT_IDS, ENROLL_FIRE_CF ("1" enables ClickFlare fire), ENROLL_PAYOUT.
+//      ALLOWED_CHAT_IDS, ENROLL_FIRE_CF ("1" enables ClickFlare fire), ENROLL_PAYOUT,
+//      QS_TENANT_ID / QS_CONVERSION_URL (QuinStreet "sale" postback — see api/_quinstreet.js).
+//
+// QuinStreet: if the resolved lead row came from the insure.com click wall its
+// rawQuery carries qs_click_key (written by api/log-lead.js). We report the sale
+// back to QuinStreet with revenue so they can optimize publishers on closes, not
+// just on form fills. Non-QuinStreet enrollments are completely unaffected.
 // Rows are written to the existing lead-log sheet with event="enrollment" and a
 // non-empty txid sentinel ("enroll-…") so lead-reconcile/daily-summary/sales-report
 // (which filter event==="lead_submitted" or skip non-empty txid) never touch them.
 
 const chatlog = require("./_chatlog");
+const quinstreet = require("./_quinstreet");
 const SHEETY_URL = (process.env.SHEETY_URL || "").replace(/\\n$/, "").trim();
 const TG_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const CHAT_ID = (process.env.ALLOWED_CHAT_IDS || "").split(",")[0].trim();
@@ -120,6 +127,38 @@ module.exports = async (req, res) => {
   });
   if (dupe) return res.status(200).json({ ok: true, dedupe: true, clickId: clickId || "", resolution: resolution });
 
+  // QuinStreet sale postback. Find the lead_submitted row this enrollment
+  // resolved to and read qs_click_key out of its rawQuery (log-lead.js wrote it
+  // there — the sheet has no spare columns). Only click-wall leads have one.
+  var qsClickKey = "", qsStatus = "", qsOk = false;
+  try {
+    var leadRow = (typeof hit !== "undefined" && hit) ? hit : null;
+    if (!leadRow && clickId) {
+      var byClick = leads.filter(function (r) { return r.clickId === clickId; });
+      if (byClick.length) leadRow = byClick[byClick.length - 1];
+    }
+    if (!leadRow && email) {
+      var byMail = leads.filter(function (r) { return r.email && String(r.email).toLowerCase() === email; });
+      if (byMail.length) leadRow = byMail[byMail.length - 1];
+    }
+    var m = leadRow && leadRow.rawQuery ? /(?:^|&)qs_click_key=([^&]*)/.exec(String(leadRow.rawQuery)) : null;
+    if (m && m[1]) qsClickKey = decodeURIComponent(m[1]);
+  } catch (_) { qsClickKey = ""; }
+
+  if (qsClickKey) {
+    try {
+      var qsRes = await quinstreet.postConversion({
+        clickKey: qsClickKey,
+        disposition: "sale",
+        clientUniqueConversionId: "sale-" + (convosoLeadId || qsClickKey),
+        revenue: revenue || DEFAULT_PAYOUT,
+        customText1: src,
+      });
+      qsOk = Boolean(qsRes && qsRes.ok);
+      qsStatus = (qsRes && (qsRes.skipped || String(qsRes.status))) || "error";
+    } catch (e) { qsStatus = "error"; }
+  }
+
   // Stage 2 only: fire the ClickFlare sale conversion with the FULL click_id.
   var cfStatus = "", cfResponse = "";
   if (FIRE_CF && clickId && FULL_ID.test(clickId)) {
@@ -139,7 +178,9 @@ module.exports = async (req, res) => {
     "&phone=***" + last4 + "&name=" + firstName +
     "&campaign_id=" + campaignId + "&ad_id=" + adId + "&keyword=" + keyword +
     "&pub_id=" + pubId + "&convoso_lead_id=" + convosoLeadId +
-    "&dispo_time=" + dispoTime + "&resolution=" + resolution;
+    "&dispo_time=" + dispoTime + "&resolution=" + resolution +
+    // slugged: "no QS_TENANT_ID" would otherwise put spaces in a query-ish string
+    (qsClickKey ? "&qs=" + String(qsStatus).replace(/[^A-Za-z0-9._-]+/g, "-") : "");
   try {
     var post = await fetch(SHEETY_URL, {
       method: "POST",
@@ -172,7 +213,8 @@ module.exports = async (req, res) => {
       "🎉 Enrollment (" + (statusName || status || "Sale") + ") — " + (firstName || "?") + " · ***" + (last4 || "????"),
       (keyword ? "kw “" + keyword + "” · " : "") + (campaignId ? "campaign " + campaignId : ""),
       "click_id " + (clickId ? "✅ (" + resolution + ")" : "❌ unresolved") +
-        (FIRE_CF ? " · ClickFlare " + (cfStatus || "skipped") : "") + " · via " + src,
+        (FIRE_CF ? " · ClickFlare " + (cfStatus || "skipped") : "") +
+        (qsClickKey ? " · QuinStreet " + (qsOk ? "✅" : "❌") : "") + " · via " + src,
     ].filter(Boolean);
     try {
       await fetch("https://api.telegram.org/bot" + TG_TOKEN + "/sendMessage", {
@@ -189,6 +231,7 @@ module.exports = async (req, res) => {
   return res.status(200).json({
     ok: true, dedupe: false, logged: logged, resolution: resolution,
     clickId: clickId || "", cf: FIRE_CF ? (cfStatus || "no-fire") : "off",
+    qs: qsClickKey ? qsStatus : undefined,
     sheetErr: sheetErr || undefined
   });
 };
