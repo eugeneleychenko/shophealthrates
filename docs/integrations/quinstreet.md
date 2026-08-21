@@ -92,7 +92,7 @@ The page accepts any of these spellings and normalizes into one sessionStorage k
 | `click_key`, `clickkey`, `ck`, `qs_click_key` | `qs_click_key` | **Conversion join key** — the one field we must persist |
 | `sub_id`, `subid`, `qs_sub_id`, `src_id`, `source_id` | `qs_sub_id` | Publisher / source id |
 | `source`, `qs_source` | `qs_source` | Source label (unused in the URL today) |
-| `qs_var1`, `var1` / `qs_var2`, `var2` | `qs_var1` / `qs_var2` | Publisher sub-ids |
+| `qs_var1`, `var1`, `utm_content` / `qs_var2`, `var2` | `qs_var1` / `qs_var2` | Publisher sub-ids (`utm_content=$var1$` also accepted, per Lindsy) |
 | `qs_campaign_id`, `qs_campaignid` / `qs_creative_id`, `qs_creativeid` | `qs_campaign_id` / `qs_creative_id` | QMP ids — deliberately NOT `utm_campaignid`, which the page already maps to Google Ads `Campaign_ID` |
 | `qs_device`, `devicetype` / `qs_bid`, `bid` | `qs_device` / `qs_bid` | Diagnostics |
 | `leadid`, `jornaya_leadid`, `qs_leadid` | `qs_leadid` | Jornaya lead id |
