@@ -151,7 +151,54 @@ async function postConversion(opts) {
   }
 }
 
+
+// ---------------------------------------------------------------------------
+// Datapass store (Upstash Redis REST, same env as api/_chatlog.js).
+// QuinStreet POSTs the consumer's data PER CLICK to api/qs-datapass.js, before
+// the consumer reaches quick-quote.html. We park it under the click key with a
+// short TTL; api/prefill.js?ck=<clickKey> hands it to the page. Never throws.
+// ---------------------------------------------------------------------------
+const REDIS_URL = (process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL || "").replace(/\/+$/, "");
+const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || "";
+const DATAPASS_TTL_SEC = 48 * 3600;
+const dpKey = (clickKey) => "qs:dp:" + String(clickKey).trim();
+
+async function redis(command) {
+  if (!REDIS_URL || !REDIS_TOKEN) return null;
+  try {
+    const resp = await fetch(REDIS_URL, {
+      method: "POST",
+      headers: { Authorization: "Bearer " + REDIS_TOKEN, "Content-Type": "application/json" },
+      body: JSON.stringify(command),
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!resp.ok) return null;
+    const j = await resp.json();
+    return j && j.result !== undefined ? j.result : null;
+  } catch (_) { return null; }
+}
+
+// Store a mapped prefill record (the /api/prefill response shape) under its click key.
+async function datapassPut(clickKey, record) {
+  if (!clickKey || !record) return false;
+  const r = await redis(["SET", dpKey(clickKey), JSON.stringify(record), "EX", DATAPASS_TTL_SEC]);
+  return r === "OK";
+}
+
+async function datapassGet(clickKey) {
+  if (!clickKey) return null;
+  const r = await redis(["GET", dpKey(clickKey)]);
+  if (!r) return null;
+  try { return JSON.parse(r); } catch (_) { return null; }
+}
+
+const datapassEnabled = () => Boolean(REDIS_URL && REDIS_TOKEN);
+
 module.exports = {
+  datapassPut,
+  datapassGet,
+  datapassEnabled,
+  DATAPASS_TTL_SEC,
   incomeToBracket,
   postConversion,
   todayET,

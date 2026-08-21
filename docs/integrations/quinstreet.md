@@ -193,6 +193,17 @@ Also: `Cache-Control: no-store` on every response, and **never log PII** — log
 - **Fallback:** if S2S is delayed or disputed, Lindsy will accept a weekly CSV of `clickKey · conversionDate · quote(0/1) · sale(0/1) · revenue`. Revenue exists in Ad Spend IQ (Misha), sourced from Convoso ← Boberdoo.
 - **Pixel alternative:** Lindsy also offered a client-side pixel that fires on the quote event. We are not using it — S2S covers quote *and* sale from one code path, and a pixel can't report revenue. Keep it in the back pocket if S2S auth drags.
 
+
+## Datapass (per-click PUSH) — added 2026-08-21
+
+The call assumed push; the spec doc described pull; QuinStreet's clicks team then offered **"datapass"**, which is push after all: one JSON POST per click, header auth, in a schema **we** define. Both models are live and feed the page the same shape.
+
+- `POST /api/qs-datapass` (`api/qs-datapass.js`) — `X-Datapass-Token` (env `QS_DATAPASS_TOKEN`, we issued it; value in `.env` and Vercel prod). Accepts our flat schema OR their native `DataPassData` shape. Stores the mapped record in Upstash `qs:dp:<clickKey>` with a 48h TTL (helpers in `_quinstreet.js`). Fail-closed auth; never logs PII.
+- `GET /api/prefill?ck=<clickKey>` — reads the store. `quick-quote.html` uses `?pf=` when a token is present, else `?ck=` from `qs_click_key`.
+- External spec sent to QuinStreet: [`docs/quinstreet-datapass-spec.md`](../quinstreet-datapass-spec.md). Token goes by DM, never in the shared channel.
+- Tested live 2026-08-21: 401 no auth, 200 both schemas, read-back OK, miss → `{ok:false}`, bad JSON → 400.
+- Still owed by QuinStreet: their staging URL for E2E once they integrate.
+
 ## Env vars
 
 | Var | Default | Purpose |
@@ -200,6 +211,7 @@ Also: `Cache-Control: no-store` on every response, and **never log PII** — log
 | `QS_TENANT_ID` | **set in Vercel prod 2026-08-21** (`F9316F29-0DAC-42BA-B7A4-28502F356C51`, also in `.env`) | `X-Tenant-Id` header. **Unset = conversions silently skipped.** Staging returned HTTP 201 with it. |
 | `QS_CONVERSION_URL` | **staging** endpoint | Conversion endpoint. Ships pointed at staging on purpose — ops flips it to the production URL once a staging test passes. |
 | `QS_PREFILL_URL` | `https://www.nextinsure.com/listingdisplay/prefill` | Prefill base URL. |
+| `QS_DATAPASS_TOKEN` | set (Vercel prod + `.env`) | Header token QuinStreet sends on `/api/qs-datapass`. Unset = 503. |
 | `QS_PREFILL_MOCK` | *(unset)* | `1` = return the spec's example payload without calling QuinStreet. **Preview/dev only.** |
 
 ```bash

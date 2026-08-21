@@ -827,11 +827,16 @@ function qqFillPhone(val){
         if (urlIncome) qqFillInput('qqIncome', String(urlIncome).replace(/[^0-9.]/g, '') || urlIncome);
     } catch (_) {}
 
-    if (!token) return; // no prefill token — URL fallback above is all we can do
+    // Two ways to get the consumer's data: the prefill TOKEN (we pull from Next Insure)
+    // or the DATAPASS record QuinStreet pushed to /api/qs-datapass under the click key.
+    var clickKey = qqSsGet('qs_click_key') || '';
+    var prefillQuery = token ? 'pf=' + encodeURIComponent(token)
+                     : clickKey ? 'ck=' + encodeURIComponent(clickKey) : '';
+    if (!prefillQuery) return; // nothing to look up — URL fallback above is all we can do
     if (qqSsGet('qs_prefill_done') === '1') return; // already fetched in this tab
 
     try {
-        fetch('/api/prefill?pf=' + encodeURIComponent(token), { credentials: 'same-origin' })
+        fetch('/api/prefill?' + prefillQuery, { credentials: 'same-origin' })
             .then(function(r){ return r && r.ok ? r.json() : null; })
             .then(function(data){
                 if (!data || !data.ok) return;

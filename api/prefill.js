@@ -7,6 +7,11 @@
 // be exposed to page scripts we don't control), so this thin server proxy sits
 // in the middle and hands the page exactly the six-ish fields the form needs.
 //
+// Two lookups:
+//   ?pf=<token>     PULL from Next Insure (original model)
+//   ?ck=<clickKey>  read what QuinStreet PUSHED to /api/qs-datapass (datapass model)
+// Both return the same shape.
+//
 // Contract (always HTTP 200 except a malformed token → 400; the page must never
 // see a 5xx, it just renders empty fields):
 //   { ok:true, source:"quinstreet", first, last, email, phone, address, zip,
@@ -36,6 +41,8 @@ const TIMEOUT_MS = 5000;
 
 // QuinStreet's tokens are UUIDs (36 chars); accept the dashless 32-char form too.
 const TOKEN_RE = /^[0-9a-f-]{32,36}$/i;
+// Click keys are 32 chars "by default, can be customized" — allow a generous safe charset.
+const CLICKKEY_RE = /^[A-Za-z0-9_.-]{6,100}$/;
 
 // The example response from the prefill doc, trimmed to the fields we map.
 // One deviation, deliberate: the doc's example Contact block omits
@@ -148,11 +155,22 @@ module.exports = async (req, res) => {
     return res.status(405).json({ ok: false, error: "method not allowed" });
   }
 
-  let token = "";
+  let token = "", clickKey = "";
   try {
     const q = req.query || {};
     token = str(q.pf || q.token || q.prefilltoken || q.prefill_token);
-  } catch (_) { token = ""; }
+    clickKey = str(q.ck || q.click_key || q.clickkey);
+  } catch (_) { token = ""; clickKey = ""; }
+
+  // Datapass path: QuinStreet already POSTed this consumer's data to
+  // /api/qs-datapass keyed by click key. Serve it from the store — no upstream call.
+  if (clickKey && !token) {
+    if (!CLICKKEY_RE.test(clickKey)) return res.status(400).json({ ok: false, error: "bad click key" });
+    const rec = await qs.datapassGet(clickKey);
+    console.log("prefill: datapass " + (rec ? "hit" : "miss") + " for ck " + clickKey.slice(0, 8) + "…");
+    if (!rec) return res.status(200).json({ ok: false, error: "no datapass record" });
+    return res.status(200).json(Object.assign({ ok: true, source: "quinstreet-datapass" }, rec, { ok: true }));
+  }
 
   if (!TOKEN_RE.test(token)) {
     console.log("prefill: bad token (len " + token.length + ")");

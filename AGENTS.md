@@ -53,7 +53,8 @@ Never commit code that drops a tracking block.
 │   ├── enrollment.js       # Sale/enrollment intake (Convoso webhook et al.): resolves truncated Sub_ID/email → full click_id, dedupes, logs event=enrollment + Telegram ping; ClickFlare ct=sale fire behind ENROLL_FIRE_CF
 │   ├── daily-summary.js    # 9am ET cron: daily lead summary + ClickFlare health check
 │   ├── prefill.js          # GET /api/prefill?pf=<token> — pulls QuinStreet prefill PII for quick-quote.html (never 5xx, no PII logged)
-│   ├── _quinstreet.js      # QuinStreet shared helpers: incomeToBracket() + postConversion() S2S. `_` = NOT routed by Vercel
+│   ├── qs-datapass.js      # POST — QuinStreet per-click consumer data push (header token) → Upstash 48h; read by /api/prefill?ck=
+│   ├── _quinstreet.js      # QuinStreet shared helpers: incomeToBracket(), postConversion() S2S, datapass store. `_` = NOT routed by Vercel
 │   ├── _chatlog.js         # Conversation memory (Upstash REST). `_` = NOT routed by Vercel
 │   └── chatlog-ingest.js   # Authed ingest for bot replies sent from GitHub Actions
 ├── scripts/                # call-check-api.mjs, clickflare-api.mjs, sales-report.mjs, lookup.mjs, ringba-totp.js (not deployed)
@@ -166,7 +167,7 @@ The bot remembers the **last 25 messages per chat** so follow-ups like "the url 
 - **`repository_dispatch` / `workflow_dispatch` only run from `main`** — the Telegram workflow files must stay on the default branch.
 - **Boberdoo blocks some webhook hosts** in its UI; the Admin API is **IP-whitelisted to `209.122.209.0/24`** (won't work from arbitrary CLIs). See [docs/integrations/boberdoo-clickflare.md](docs/integrations/boberdoo-clickflare.md).
 - **`click_id ≠ cpid` is EXPECTED**, not a bug — `cpid` is ClickFlare's CampaignID, not a click id. See [docs/call-check.md](docs/call-check.md).
-- **QuinStreet prefill is a PULL** — `quick-quote.html` reads `?token=` and our `/api/prefill` GETs their API; there is no inbound PII endpoint. See [docs/integrations/quinstreet.md](docs/integrations/quinstreet.md).
+- **QuinStreet prefill has two paths** — PULL (`?token=` → `/api/prefill?pf=` GETs their API) and PUSH ("datapass": they POST per click to `/api/qs-datapass`, page reads `/api/prefill?ck=`). See [docs/integrations/quinstreet.md](docs/integrations/quinstreet.md).
 
 ## Further Documentation
 
