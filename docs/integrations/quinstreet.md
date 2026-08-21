@@ -197,7 +197,7 @@ Also: `Cache-Control: no-store` on every response, and **never log PII** — log
 
 | Var | Default | Purpose |
 |---|---|---|
-| `QS_TENANT_ID` | *(unset)* | `X-Tenant-Id` header. **Unset = conversions silently skipped.** Provided by QuinStreet. |
+| `QS_TENANT_ID` | **set in Vercel prod 2026-08-21** (`F9316F29-0DAC-42BA-B7A4-28502F356C51`, also in `.env`) | `X-Tenant-Id` header. **Unset = conversions silently skipped.** Staging returned HTTP 201 with it. |
 | `QS_CONVERSION_URL` | **staging** endpoint | Conversion endpoint. Ships pointed at staging on purpose — ops flips it to the production URL once a staging test passes. |
 | `QS_PREFILL_URL` | `https://www.nextinsure.com/listingdisplay/prefill` | Prefill base URL. |
 | `QS_PREFILL_MOCK` | *(unset)* | `1` = return the spec's example payload without calling QuinStreet. **Preview/dev only.** |
@@ -262,7 +262,7 @@ phone=1234&zip=60610&name=John&qs_click_key=<key>&qs_sub_id=<sub>&qs_source=<src
 
 ## Open items — waiting on QuinStreet
 
-- [ ] **`X-Tenant-Id`** — nothing fires without it.
+- [x] **`X-Tenant-Id`** — received 2026-08-21, set in Vercel, staging test returned 201. Quote/sale now post to **staging**; flip `QS_CONVERSION_URL` to prod once Lindsy confirms test conversions show in QMP.
 - [ ] **Click-key + sub-id macro names**, and the full macro list Lindsy promised (she said she'd put it in Slack / email a spreadsheet). Our aliases are a guess until then.
 - [ ] **Staging access + a test prefill token** that returns real-shaped data.
 - [ ] **Phone-validation vendor** — Lindsy was checking with her head of product. QuinStreet/publishers validate address (always), email (usually), phone (inconsistently). We want the vendor name and specifically whether it **rejects VoIP** (Misha: *"what we actually need is to remove VoIP"*). Until we know, assume phone validation is NOT guaranteed on inbound QuinStreet traffic.
