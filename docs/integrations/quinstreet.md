@@ -262,10 +262,12 @@ phone=1234&zip=60610&name=John&qs_click_key=<key>&qs_sub_id=<sub>&qs_source=<src
 
 ## Open items — waiting on QuinStreet
 
+Slack channel: `#quin-street-clicks` (C0BQCBT1VFU, citadinesgroup.slack.com) — readable from Claude Code via the Slack MCP.
+
 - [x] **`X-Tenant-Id`** — received 2026-08-21, set in Vercel, staging test returned 201. Quote/sale now post to **staging**; flip `QS_CONVERSION_URL` to prod once Lindsy confirms test conversions show in QMP.
 - [ ] **Click-key + sub-id macro names**, and the full macro list Lindsy promised (she said she'd put it in Slack / email a spreadsheet). Our aliases are a guess until then.
 - [ ] **Staging access + a test prefill token** that returns real-shaped data.
-- [ ] **Phone-validation vendor** — Lindsy was checking with her head of product. QuinStreet/publishers validate address (always), email (usually), phone (inconsistently). We want the vendor name and specifically whether it **rejects VoIP** (Misha: *"what we actually need is to remove VoIP"*). Until we know, assume phone validation is NOT guaranteed on inbound QuinStreet traffic.
+- [x] **Phone-validation vendor** — Lindsy (Slack 2026-08-20): QuinStreet uses **BriteVerify** for address + phone on their leads. Open question for us: does it screen VoIP? Evaluate for non-QuinStreet traffic (task #6, not started).
 - [ ] **Pixel alternative** — confirm we're skipping it (S2S covers both events). Revisit only if tenant-id/staging drags.
 - [ ] Confirm with Lindsy that the **pull model** is what she intends (the call implied a push).
 
