@@ -167,7 +167,7 @@ select.qq-select{appearance:auto;-webkit-appearance:menulist;cursor:pointer;}
 (function() {
     var QS_ALIASES = {
         qs_token:       ['token', 'pf', 'prefilltoken', 'prefill_token'],
-        qs_click_key:   ['click_key', 'clickkey', 'ck', 'qs_click_key'],          // $clickkey$
+        qs_click_key:   ['click_key', 'clickkey', 'ck', 'qs_click_key', 'clickid'], // $clickkey$ (clickid = ClickFlare traffic-source param name)
         qs_sub_id:      ['sub_id', 'subid', 'qs_sub_id', 'src_id', 'source_id'],  // $source$ (publisher)
         qs_source:      ['source', 'qs_source'],
         qs_var1:        ['qs_var1', 'var1', 'utm_content'],                       // $var1$ publisher subid (utm_content per Lindsy)
@@ -178,7 +178,8 @@ select.qq-select{appearance:auto;-webkit-appearance:menulist;cursor:pointer;}
         qs_bid:         ['qs_bid', 'bid'],                                        // $bid$ cpc
         qs_leadid:      ['leadid', 'jornaya_leadid', 'qs_leadid'],                // $leadid$ Jornaya
         qs_gender:      ['gender', 'qs_gender'],                                  // $gender$ Male/Female — form fallback when no token
-        qs_income:      ['income', 'household_income', 'qs_income']               // $household_income$ numeric — form fallback when no token
+        qs_income:      ['income', 'household_income', 'qs_income'],              // $household_income$ numeric — form fallback when no token
+        qs_zip:         ['zip', 'zc', 'zipcode']                                  // $zc$ — submit reads qs_zip when the URL has no zip
     };
     try {
         var params = new URLSearchParams(window.location.search);
@@ -618,7 +619,7 @@ function submitQuickQuote(e) {
         // Get zip from URL params (passed from ad click), the QuinStreet prefill,
         // or a saved quiz session, else default
         var urlParams = new URLSearchParams(window.location.search);
-        var zip = urlParams.get("zip") || qqPrefillZip || qqSsGet('quiz_zip') || "60610";
+        var zip = urlParams.get("zip") || qqPrefillZip || qqSsGet('qs_zip') || qqSsGet('quiz_zip') || "60610";
 
         // QuinStreet click/source params (captured on landing; empty for all other traffic)
         var qsClickKey = qqSsGet('qs_click_key') || '';
@@ -639,7 +640,10 @@ function submitQuickQuote(e) {
 
         // Read ClickFlare click_id from cookie (set by the CF tracking script)
         // Falls back to cpid from sessionStorage if cookie not available
-        var cfClickId = (document.cookie.match(/(^| )cf_click_id=([^;]+)/) || [])[2] || '';
+        // Redirect-campaign traffic (QuinStreet via leosourceclick.com/cf/r/…) can arrive with
+        // cf_click_id in the URL instead of the cookie; the UTM block saved it as utm_cf_click_id.
+        var cfClickId = (document.cookie.match(/(^| )cf_click_id=([^;]+)/) || [])[2]
+            || urlParams.get('cf_click_id') || qqSsGet('utm_cf_click_id') || '';
         var subId = cfClickId || qqSsGet('utm_cpid') || '';
         var hasRealClickId = !!cfClickId; // cpid fallback is a CampaignID, NOT a real click id
 

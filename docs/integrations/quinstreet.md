@@ -204,6 +204,24 @@ The call assumed push; the spec doc described pull; QuinStreet's clicks team the
 - Tested live 2026-08-21: 401 no auth, 200 both schemas, read-back OK, miss → `{ok:false}`, bad JSON → 400.
 - Still owed by QuinStreet: their staging URL for E2E once they integrate.
 
+
+## ClickFlare routing (Josh, 2026-08-28)
+
+Josh wants QS clicks to enter through a ClickFlare **redirect** campaign so paid-click reporting lives in ClickFlare:
+`https://leosourceclick.com/cf/r/6a848920a4949a0012e4e6c5?bid=$bid$&clickid=$clickkey$&source=$source$&…` (campaign "QuinStreet Clicks", traffic source "QuinStreet" `6a8488f827e1320012dae57b`, flow → offer "Leosource - QS MAIN" `6a91ed896f24880012115754`).
+
+- Traffic-source param map (read via internal API): `bid`→cost, `clickid`→externalId, tf1 source, tf2 gender, tf3 devicetype, tf4 campaignid, tf5 creativeid, tf6 creativename, **tf7 prefilltoken**, tf8 household_income, tf9 tobacco_use, tf10 medical_condition, tf12 position, tf13 city, **tf14 zc**, tf15 ssc, tf16 county. Not captured: `$var1$`, `$var2$`, `$leadid$` (asked Josh to add as tf17-19).
+- **Bug found 2026-08-28:** the offer URL was bare `https://shophealthrates.com/quick-quote.html`, so the 302 stripped every param (verified with curl: `location: https://shophealthrates.com/quick-quote.html`). Prefill token and click key never reached the page.
+- Fix = offer URL with tokens, using OUR param names (so `campaignid` never collides with the Google `utm_campaignid` → `Campaign_ID` mapping):
+
+```
+https://shophealthrates.com/quick-quote.html?token={trackingField7}&click_key={external_id}&sub_id={trackingField1}&gender={trackingField2}&devicetype={trackingField3}&qs_campaign_id={trackingField4}&qs_creative_id={trackingField5}&income={trackingField8}&zip={trackingField14}&qs_var1={trackingField17}&qs_var2={trackingField18}&leadid={trackingField19}&cf_click_id={cf_click_id}&cpid={campaign_id}&utm_source=quinstreet&utm_medium=clickwall&utm_campaign=insure_com
+```
+
+- Page hardening for this flow (deployed): `clickid` alias → `qs_click_key`; `zc` alias → `qs_zip` (submit zip chain); `cf_click_id` URL param / `utm_cf_click_id` fallback for Boberdoo `Sub_ID` and the ClickFlare lead pixel.
+- Consequence: QS leads now carry a ClickFlare click_id → the lead pixel fires (except $0-40k) and ClickFlare counts them as conversions on the QuinStreet campaign. Josh's call on payout. `log-lead` alert logic is unaffected (qs_click_key present).
+- Verify after Josh updates the offer: `curl -sI "https://leosourceclick.com/cf/r/6a848920a4949a0012e4e6c5?clickid=T1&prefilltoken=54f17290-9121-4ba5-bf34-99c111ef9696&zc=30301&source=P1" | grep -i location` must show the params on quick-quote.html.
+
 ## Env vars
 
 | Var | Default | Purpose |
