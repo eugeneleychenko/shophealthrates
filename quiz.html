@@ -683,7 +683,13 @@
                     <p class="field-error" id="nameEmailError" role="alert" hidden></p>
                 </div>
 
-                <p class="disclaimer">By submitting your information and clicking the button below, you represent that you are at least 18 years old and provide your express written consent to be contacted by LeoSource Insurance Agency, LLC and/or its licensed partner agents at the number and email you provided (including any wireless number) regarding health insurance products, through the use of automated telephone dialing systems, pre-recorded messages, and/or text messages. Message and data rates may apply. Your consent is not a condition of purchase. This program is subject to our  <a href="privacy.html" target="_blank">Privacy Policy</a> and <a href="term.html" target="_blank">Terms of Use</a>.</p>
+                <div class="consent-check-row" id="consentCheckRow">
+                    <label class="consent-check-label" for="consentCheckbox">
+                        <input type="checkbox" id="consentCheckbox">
+                        <span>By submitting your information and clicking the button below, you represent that you are at least 18 years old and provide your express written consent to be contacted by LeoSource Insurance Agency, LLC and/or its licensed partner agents at the number and email you provided (including any wireless number) regarding health insurance products, through the use of automated telephone dialing systems, pre-recorded messages, and/or text messages. Message and data rates may apply. Your consent is not a condition of purchase. This program is subject to our  <a href="privacy.html" target="_blank">Privacy Policy</a> and <a href="term.html" target="_blank">Terms of Use</a>.</span>
+                    </label>
+                </div>
+                <p class="field-error" id="consentError" role="alert" hidden></p>
 
                 <p class="disclaimer">Message &amp; data rates may apply. Text "STOP" to Cancel. Text "HELP" for Help.</p>
 
@@ -1035,8 +1041,10 @@ function checkNameEmail(){
     const last = document.getElementById("lastName").value.trim();
     const email = document.getElementById("email").value.trim();
     const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    setInactive(submitBtn, !(first.length > 0 && last.length > 0 && emailOk));
+    const consentOk = document.getElementById("consentCheckbox").checked;
+    setInactive(submitBtn, !(first.length > 0 && last.length > 0 && emailOk && consentOk));
     clearError('nameEmailError', [document.getElementById("firstName"), document.getElementById("lastName"), document.getElementById("email")]);
+    if (consentOk) clearError('consentError', [document.getElementById("consentCheckRow")]);
 }
 
 function refreshButtons(){
@@ -1092,6 +1100,7 @@ document.getElementById("phone").addEventListener("input", checkAddressPhone);
 document.getElementById("firstName").addEventListener("input", checkNameEmail);
 document.getElementById("lastName").addEventListener("input", checkNameEmail);
 document.getElementById("email").addEventListener("input", checkNameEmail);
+document.getElementById("consentCheckbox").addEventListener("change", checkNameEmail);
 
 
 // =========================
@@ -1184,6 +1193,15 @@ function submitLead(e) {
     if (bad.length) {
         bad.forEach(function(f){ f.classList.add('input-error'); });
         showError('nameEmailError', 'Please enter your name and a valid email address to continue.');
+        return false;
+    }
+
+    var consentFld = document.getElementById("consentCheckbox");
+    var consentRow = document.getElementById("consentCheckRow");
+    clearError('consentError', [consentRow]);
+    if (!consentFld.checked) {
+        consentRow.classList.add('input-error');
+        showError('consentError', 'Please check the box to confirm your consent before continuing.');
         return false;
     }
 

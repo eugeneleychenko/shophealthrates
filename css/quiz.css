@@ -652,6 +652,39 @@ MAIN CSS START
     font-weight:700;
     text-decoration:underline;
 	}
+.consent-check-row{
+    margin-top:20px;
+    border-radius:6px;
+	}
+.consent-check-row.input-error{
+    border:2px solid #d93025;
+    background-color:#fff8f7;
+    padding:8px;
+	}
+.consent-check-label{
+    display:flex;
+    align-items:flex-start;
+    gap:8px;
+    cursor:pointer;
+	}
+.consent-check-label input[type="checkbox"]{
+    flex-shrink:0;
+    width:16px;
+    height:16px;
+    margin-top:3px;
+    cursor:pointer;
+	}
+.consent-check-label span{
+    font-size:12px;
+    line-height:1.5;
+    color:#333;
+    text-align:left;
+	}
+.consent-check-label span a{
+    color:#111;
+    font-weight:700;
+    text-decoration:underline;
+	}
 
 
 
@@ -795,5 +828,6 @@ MEDIA-QUERY
 
 .screen.active .btn-back{ animation: fadeUp .4s ease both .40s; } 
 
-.screen.active .disclaimer{ animation: fadeUp .4s ease both .30s; } 
+.screen.active .disclaimer{ animation: fadeUp .4s ease both .30s; }
 .screen.active .disclaimer-2{animation: fadeUp .4s ease both .45s;}
+.screen.active .consent-check-row{ animation: fadeUp .4s ease both .30s; }
