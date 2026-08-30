@@ -725,6 +725,15 @@ function ssGet(k){ try { return sessionStorage.getItem(k); } catch (_) { return 
 function ssSet(k, v){ try { sessionStorage.setItem(k, v); } catch (_) {} }
 function ssRemove(k){ try { sessionStorage.removeItem(k); } catch (_) {} }
 
+// Consent checkbox only applies to direct/organic visits (no ad-click params captured
+// via landing_url, set by the tracking-capture script above). Ad-landing traffic keeps
+// the disclaimer text but skips the checkbox per client request.
+var consentRequired = !ssGet('landing_url');
+if (!consentRequired) {
+    var consentRowEl = document.getElementById('consentCheckRow');
+    if (consentRowEl) consentRowEl.style.display = 'none';
+}
+
 
 // =========================
 // STEP SHOW FUNCTION
@@ -1041,7 +1050,7 @@ function checkNameEmail(){
     const last = document.getElementById("lastName").value.trim();
     const email = document.getElementById("email").value.trim();
     const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    const consentOk = document.getElementById("consentCheckbox").checked;
+    const consentOk = !consentRequired || document.getElementById("consentCheckbox").checked;
     setInactive(submitBtn, !(first.length > 0 && last.length > 0 && emailOk && consentOk));
     clearError('nameEmailError', [document.getElementById("firstName"), document.getElementById("lastName"), document.getElementById("email")]);
     if (consentOk) clearError('consentError', [document.getElementById("consentCheckRow")]);
@@ -1196,13 +1205,15 @@ function submitLead(e) {
         return false;
     }
 
-    var consentFld = document.getElementById("consentCheckbox");
-    var consentRow = document.getElementById("consentCheckRow");
-    clearError('consentError', [consentRow]);
-    if (!consentFld.checked) {
-        consentRow.classList.add('input-error');
-        showError('consentError', 'Please check the box to confirm your consent before continuing.');
-        return false;
+    if (consentRequired) {
+        var consentFld = document.getElementById("consentCheckbox");
+        var consentRow = document.getElementById("consentCheckRow");
+        clearError('consentError', [consentRow]);
+        if (!consentFld.checked) {
+            consentRow.classList.add('input-error');
+            showError('consentError', 'Please check the box to confirm your consent before continuing.');
+            return false;
+        }
     }
 
     var btn = document.getElementById("submitBtn");
