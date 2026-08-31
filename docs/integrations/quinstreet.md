@@ -222,6 +222,21 @@ https://shophealthrates.com/quick-quote.html?token={trackingField7}&click_key={e
 - Consequence: QS leads now carry a ClickFlare click_id → the lead pixel fires (except $0-40k) and ClickFlare counts them as conversions on the QuinStreet campaign. Josh's call on payout. `log-lead` alert logic is unaffected (qs_click_key present).
 - Verify after Josh updates the offer: `curl -sI "https://leosourceclick.com/cf/r/6a848920a4949a0012e4e6c5?clickid=T1&prefilltoken=54f17290-9121-4ba5-bf34-99c111ef9696&zc=30301&source=P1" | grep -i location` must show the params on quick-quote.html.
 
+
+## LIVE TRAFFIC — findings 2026-08-31
+
+QuinStreet traffic went live today (14 leads by 17:50 ET, most recent `qs_click_key=747c1b2d…`). Two findings:
+
+**1. `cf_click_id` empty on all QS leads (Misha's report) — expected, not a page bug.**
+QS traffic is arriving **direct** on `quick-quote.html` (Lindsy still has the original direct URL), not through Josh's ClickFlare redirect. Verified again 2026-08-31: the offer URL on "Leosource - QS MAIN" is still the bare `https://shophealthrates.com/quick-quote.html`, and `curl -sI` on the campaign link still returns a param-less `location:`. With no redirect and no `cpid`, the page's non-redirect CF tag has no campaign to attach to, so no `cf_click_id` cookie is set.
+- Consequence: Boberdoo `Sub_ID` is empty for QS leads (`Sub_ID` = cf_click_id), and QS clicks/leads do not appear in ClickFlare.
+- **QuinStreet attribution is NOT affected** — `qs_click_key` and `qs_sub_id` (16987200) are present on all 14 rows, which is what the conversion S2S joins on.
+- Fix is unchanged: Josh sets the offer URL with tokens, then Lindsy swaps to the `leosourceclick.com/cf/r/…` link. Until then, empty `cf_click_id` on QS leads is the expected state, not a regression.
+
+**2. Quote conversions are going to QuinStreet STAGING.** `QS_CONVERSION_URL` is not set in Vercel production, so `_quinstreet.js` falls back to `nextinsure.quinstage.com`. Every `quote` conversion from today's real leads posted to staging; Lindsy sees nothing in production QMP. Fix: `vercel env add QS_CONVERSION_URL production` = `https://www.nextinsure.com/listingdisplay/handlers/conversion.ashx`, then redeploy.
+
+**Not a bug (checked):** `SHEETY_URL` in Vercel has a trailing newline, and `log-lead.js` does not strip it — harmless, because the WHATWG URL parser strips trailing control characters. It only breaks when read from a `vercel env pull` file, where the newline is written as a literal `\n`; that is why the `scripts/*.mjs` and `enrollment.js` copies carry `.replace(/\\n$/, "")`.
+
 ## Env vars
 
 | Var | Default | Purpose |
