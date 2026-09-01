@@ -237,6 +237,18 @@ QS traffic is arriving **direct** on `quick-quote.html` (Lindsy still has the or
 
 **Not a bug (checked):** `SHEETY_URL` in Vercel has a trailing newline, and `log-lead.js` does not strip it — harmless, because the WHATWG URL parser strips trailing control characters. It only breaks when read from a `vercel env pull` file, where the newline is written as a literal `\n`; that is why the `scripts/*.mjs` and `enrollment.js` copies carry `.replace(/\\n$/, "")`.
 
+
+## 2026-09-01 — Josh applied the offer URL; redirect verified
+
+Offer "Leosource - QS MAIN" now carries the token URL. Live `curl -sI` on the campaign link resolves correctly:
+`token`, `click_key`, `sub_id`, `gender`, `devicetype`, `qs_campaign_id`, `qs_creative_id`, `income`, `zip`, **`cf_click_id`** (real UUID) and `cpid` all populate. **This closes the empty-`cf_click_id` gap Misha reported** — QS leads will carry a ClickFlare click id and a populated Boberdoo `Sub_ID` once Lindsy swaps her link.
+
+**Still outstanding (Josh):** `var1`/`var2`/`leadid` were never added to the traffic source, so the offer URL's `{trackingField17..19}` do not resolve and arrive as the **literal strings** `{trackingField17}` etc.
+
+**Page hardening (deployed 2026-09-01):** the QS capture block now drops any value that is still an unresolved placeholder — `{...}` (ClickFlare) or `$...$` (QuinStreet, e.g. `$var1$` when a publisher has no value). Verified live: `qs_var1/qs_var2/qs_leadid` are simply absent rather than storing junk, everything else stores normally. This means **Lindsy can safely swap to the ClickFlare link now**; adding tf17-19 later needs no change on our side.
+
+**Watch item for Josh:** the page also runs the non-redirect ClickFlare tag, and traffic now arrives with `cpid`. Confirm the redirect campaign is not double-counting a click/visit per QS lead in ClickFlare reporting.
+
 ## Env vars
 
 | Var | Default | Purpose |

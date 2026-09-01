@@ -181,11 +181,17 @@ select.qq-select{appearance:auto;-webkit-appearance:menulist;cursor:pointer;}
         qs_income:      ['income', 'household_income', 'qs_income'],              // $household_income$ numeric — form fallback when no token
         qs_zip:         ['zip', 'zc', 'zipcode']                                  // $zc$ — submit reads qs_zip when the URL has no zip
     };
+    // An UNRESOLVED macro arrives as its own placeholder: ClickFlare sends
+    // "{trackingField17}" when that field isn't mapped, QuinStreet sends "$var1$"
+    // when it has no value. Storing either would push literal junk into Boberdoo.
+    function qsResolved(v) {
+        return !/^\{.*\}$/.test(v) && !/^\$.*\$$/.test(v) && v.indexOf('%7B') !== 0;
+    }
     try {
         var params = new URLSearchParams(window.location.search);
         var lower = {};
         params.forEach(function(value, key) {
-            if (value) lower[String(key).toLowerCase()] = value;
+            if (value && qsResolved(value)) lower[String(key).toLowerCase()] = value;
         });
         Object.keys(QS_ALIASES).forEach(function(storeKey) {
             var names = QS_ALIASES[storeKey];
