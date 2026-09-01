@@ -106,7 +106,7 @@ The following tracking scripts are **critical revenue infrastructure**. Removing
 | Microsoft Clarity (`clarity.ms/tag/x0ifuryqyz`) | index, quiz | Session recording & heatmaps |
 | UTM/tracking param capture (sessionStorage) | index, quiz | Saves `gclid`, `cpid`, `wbraid`, `gbraid` from ad-click URL |
 | ClickFlare tag (`leosourceclick.com/cf/tags/6a0fb09a...`) | index, quiz | Ad-click attribution — sets `cf_click_id` cookie |
-| ClickFlare → Ringba bridge (`_rgba_tags` push) | index, quiz, thank-you, thank-you-v2 | Passes ClickFlare click_id to Ringba as a connection tag |
+| ClickFlare → Ringba bridge (`_rgba_tags` push) | index, quiz, thank-you, thank-you-v2, quick-quote | Passes ClickFlare click_id to Ringba as a connection tag. **quick-quote also reads `cf_click_id` from the URL** (approved 2026-09-01) — QuinStreet arrives via a ClickFlare *redirect* campaign that sets no first-party cookie here, so the cookie/`window.clickflare` path alone would come up empty. |
 | ClickFlare lead conversion pixel (`leosourceclick.com/cf/cv`) | quiz (submitLead) | Fires on form submit to record lead conversion |
 | ClickFlare phone_call pixel (`leosourceclick.com/cf/cv?ct=phone_call`) | thank-you, thank-you-v2 | Fires on Connect Streams button click |
 | Connect Streams lightbox (module 1966) | index, thank-you, thank-you-v2 | "Connect Me Now" callback widget |

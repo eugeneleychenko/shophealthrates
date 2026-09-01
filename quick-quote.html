@@ -142,9 +142,19 @@ select.qq-select{appearance:auto;-webkit-appearance:menulist;cursor:pointer;}
 <!-- Bridge: pass ClickFlare click ID to Ringba -->
 <script>
 (function() {
+  // QuinStreet arrives via a ClickFlare REDIRECT campaign (leosourceclick.com/cf/r/…),
+  // which carries cf_click_id in the URL and sets no first-party cookie here. Read it
+  // once up front so this keeps working after the non-redirect tag is retired.
+  var urlClickId = '';
+  try {
+    urlClickId = new URLSearchParams(window.location.search).get('cf_click_id')
+      || sessionStorage.getItem('utm_cf_click_id') || '';
+  } catch (_) {}
+
   var intervalId = setInterval(function() {
     var cfClickId = (window.clickflare && window.clickflare.tracking_params && window.clickflare.tracking_params.click_id)
       || (document.cookie.match(/(^| )cf_click_id=([^;]+)/) || [])[2]
+      || urlClickId
       || '';
     if (cfClickId) {
       (window._rgba_tags = (window._rgba_tags || [])).push({ type: "User", clickid: cfClickId });

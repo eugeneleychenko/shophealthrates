@@ -249,6 +249,17 @@ Offer "Leosource - QS MAIN" now carries the token URL. Live `curl -sI` on the ca
 
 **Watch item for Josh:** the page also runs the non-redirect ClickFlare tag, and traffic now arrives with `cpid`. Confirm the redirect campaign is not double-counting a click/visit per QS lead in ClickFlare reporting.
 
+
+## 2026-09-01 (pm) — chain complete, conversions on PRODUCTION
+
+Josh finished both halves. Verified live: `token`, `click_key`, `sub_id`, `gender`, `devicetype`, `qs_campaign_id`, `qs_creative_id`, `income`, `zip`, **`qs_var1`, `qs_var2`, `leadid`** (tf17-19 now mapped and enabled) and **`cf_click_id`** all resolve through the redirect. The click-through URL Lindsy should use is the campaign link with `&var1=$var1$&var2=$var2$&leadid=$leadid$` appended.
+
+**Retiring the non-redirect ClickFlare tag.** Josh is right that it is redundant under a redirect campaign and likely double-counts a visit. Confirmed safe: **53 of 53** `quick-quote` leads carry a `qs_click_key` and **zero** carry a `gclid` — the page serves QuinStreet only, so nothing else depends on the tag.
+- **Prerequisite done (tracking change, approved):** the ClickFlare→Ringba bridge read `cf_click_id` only from `window.clickflare` or the cookie, neither of which exists once the tag is gone — phone calls from QS traffic would have lost attribution. It now falls back to the `cf_click_id` URL param (and the `utm_cf_click_id` sessionStorage copy). Verified with the tag network-blocked: `_rgba_tags` receives `{type:"User", clickid:"b598f16f-…"}`.
+- Boberdoo `Sub_ID` and the lead pixel already had the URL fallback. **Josh can remove the tag whenever he likes.**
+
+**`QS_CONVERSION_URL` flipped to production** (`https://www.nextinsure.com/listingdisplay/handlers/conversion.ashx`), set in Vercel and deployed; prod endpoint returns **HTTP 201** with our tenant id. Quote and sale conversions now report to live QMP. Prompted by Misha hand-posting two sales into Slack for Lindsy to map manually — the automation was firing into staging the whole time.
+
 ## Env vars
 
 | Var | Default | Purpose |
