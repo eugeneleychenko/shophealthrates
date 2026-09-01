@@ -256,7 +256,10 @@ Josh finished both halves. Verified live: `token`, `click_key`, `sub_id`, `gende
 
 **Retiring the non-redirect ClickFlare tag.** Josh is right that it is redundant under a redirect campaign and likely double-counts a visit. Confirmed safe: **53 of 53** `quick-quote` leads carry a `qs_click_key` and **zero** carry a `gclid` — the page serves QuinStreet only, so nothing else depends on the tag.
 - **Prerequisite done (tracking change, approved):** the ClickFlare→Ringba bridge read `cf_click_id` only from `window.clickflare` or the cookie, neither of which exists once the tag is gone — phone calls from QS traffic would have lost attribution. It now falls back to the `cf_click_id` URL param (and the `utm_cf_click_id` sessionStorage copy). Verified with the tag network-blocked: `_rgba_tags` receives `{type:"User", clickid:"b598f16f-…"}`.
-- Boberdoo `Sub_ID` and the lead pixel already had the URL fallback. **Josh can remove the tag whenever he likes.**
+- Boberdoo `Sub_ID` and the lead pixel already had the URL fallback.
+- **The tag was ours, not Josh's** (he never placed it — it was in `quick-quote.html`). **Removed 2026-09-01**; a comment block marks where it was and the conditions for restoring it.
+- **End-to-end verified through the live redirect with the tag gone:** page prefills, Ringba receives `{type:"User", clickid:"da8b140d-…"}`, Boberdoo `Sub_ID` = that same real ClickFlare click id (the blank-`Sub_ID` complaint is now closed), `QS_Click_Key`/`QS_Var1`/`QS_Var2`/`Jornaya_Lead_ID`/`Zip`/`Gender` all populate, and the ClickFlare lead pixel fires with the correct `click_id`. Zero page errors.
+- *Test artifacts:* the verification runs created a handful of real clicks on the QuinStreet campaign and one real lead conversion (click `da8b140d-…`). Boberdoo and Sheety were stubbed, so no test lead reached them.
 
 **`QS_CONVERSION_URL` flipped to production** (`https://www.nextinsure.com/listingdisplay/handlers/conversion.ashx`), set in Vercel and deployed; prod endpoint returns **HTTP 201** with our tenant id. Quote and sale conversions now report to live QMP. Prompted by Misha hand-posting two sales into Slack for Lindsy to map manually — the automation was firing into staging the whole time.
 

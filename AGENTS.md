@@ -105,7 +105,7 @@ The following tracking scripts are **critical revenue infrastructure**. Removing
 | Ringba JS (`//b-js.ringba.com/CA28ed...`) | index, quiz, thank-you, thank-you-v2 | Call tracking — swaps `(800) 758-1590` with a tracked pool number |
 | Microsoft Clarity (`clarity.ms/tag/x0ifuryqyz`) | index, quiz | Session recording & heatmaps |
 | UTM/tracking param capture (sessionStorage) | index, quiz | Saves `gclid`, `cpid`, `wbraid`, `gbraid` from ad-click URL |
-| ClickFlare tag (`leosourceclick.com/cf/tags/6a0fb09a...`) | index, quiz | Ad-click attribution — sets `cf_click_id` cookie |
+| ClickFlare tag (`leosourceclick.com/cf/tags/6a0fb09a...`) | index, quiz | Ad-click attribution — sets `cf_click_id` cookie. **Removed from quick-quote 2026-09-01 (approved)**: that page is 100% QuinStreet, which arrives via a ClickFlare *redirect* campaign that already records the click, so the tag double-counted. Restore it if quick-quote is ever pointed at Google Ads or any non-redirect source. |
 | ClickFlare → Ringba bridge (`_rgba_tags` push) | index, quiz, thank-you, thank-you-v2, quick-quote | Passes ClickFlare click_id to Ringba as a connection tag. **quick-quote also reads `cf_click_id` from the URL** (approved 2026-09-01) — QuinStreet arrives via a ClickFlare *redirect* campaign that sets no first-party cookie here, so the cookie/`window.clickflare` path alone would come up empty. |
 | ClickFlare lead conversion pixel (`leosourceclick.com/cf/cv`) | quiz (submitLead) | Fires on form submit to record lead conversion |
 | ClickFlare phone_call pixel (`leosourceclick.com/cf/cv?ct=phone_call`) | thank-you, thank-you-v2 | Fires on Connect Streams button click |
