@@ -61,7 +61,10 @@ select.qq-select{appearance:auto;-webkit-appearance:menulist;cursor:pointer;}
 }
 @media only screen and (max-width:600px){
   .qq-form-box{padding:26px 20px 28px;}
-  .qq-field-row{flex-direction:column;gap:0;}
+  .qq-field-row{gap:10px;}
+  .qq-field{margin-top:10px;}
+  .qq-field label{font-size:13px;margin-bottom:6px;}
+  .qq-input{height:42px;}
   .qq-heading{font-size:28px;line-height:36px;}
 }
 </style>
@@ -339,21 +342,22 @@ select.qq-select{appearance:auto;-webkit-appearance:menulist;cursor:pointer;}
                         <input type="email" id="qqEmail" class="qq-input" placeholder="you@example.com" autocomplete="email">
                     </div>
 
-                    <div class="qq-field">
-                        <label for="qqDob">Date Of Birth</label>
-                        <input type="text" id="qqDob" class="qq-input" inputmode="numeric" placeholder="MM/DD/YYYY" autocomplete="bday" maxlength="10">
-                    </div>
-
-                    <div class="qq-field">
-                        <label for="qqHousehold">Household Size</label>
-                        <select id="qqHousehold" class="qq-input qq-select">
-                            <option value="" disabled selected>Select household size</option>
-                            <option value="1">1</option>
-                            <option value="2">2</option>
-                            <option value="3">3</option>
-                            <option value="4">4</option>
-                            <option value="5">5 or more</option>
-                        </select>
+                    <div class="qq-field-row">
+                        <div class="qq-field">
+                            <label for="qqDob">Date Of Birth</label>
+                            <input type="text" id="qqDob" class="qq-input" inputmode="numeric" placeholder="MM/DD/YYYY" autocomplete="bday" maxlength="10">
+                        </div>
+                        <div class="qq-field">
+                            <label for="qqHousehold">Household Size</label>
+                            <select id="qqHousehold" class="qq-input qq-select">
+                                <option value="" disabled selected>Select household size</option>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+                                <option value="5">5 or more</option>
+                            </select>
+                        </div>
                     </div>
 
                     <div class="qq-field">
