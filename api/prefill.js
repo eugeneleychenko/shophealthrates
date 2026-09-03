@@ -117,7 +117,7 @@ function selfIndividual(list) {
 // never values, so nothing identifiable reaches the logs. Added 2026-09-01 to settle
 // "DOB and household size are not coming over": tells us whether the gap is upstream
 // (QuinStreet did not send it) or ours (we mapped it wrong).
-function presenceLog(tag, mapped, json) {
+async function presenceLog(tag, mapped, json) {
   try {
     const keys = ["first","last","email","phone","address","zip","dob","gender","householdSize","income"];
     const have = keys.filter(function (k) { return mapped && mapped[k]; });
@@ -132,7 +132,9 @@ function presenceLog(tag, mapped, json) {
           + " individuals=" + inds.length
           + " rawSelf=[" + Object.keys(self).join(",") + "]";
     }
-    console.log("prefill-fields " + tag + " have=[" + have.join(",") + "] missing=[" + missing.join(",") + "]" + raw);
+    const line = tag + " have=[" + have.join(",") + "] missing=[" + missing.join(",") + "]" + raw;
+    console.log("prefill-fields " + line);
+    await qs.diagPush(line);   // durable: readable long after the log window closes
   } catch (_) {}
 }
 
@@ -192,7 +194,7 @@ module.exports = async (req, res) => {
     const rec = await qs.datapassGet(clickKey);
     console.log("prefill: datapass " + (rec ? "hit" : "miss") + " for ck " + clickKey.slice(0, 8) + "…");
     if (!rec) return res.status(200).json({ ok: false, error: "no datapass record" });
-    presenceLog("ck=" + clickKey.slice(0, 8) + "…", rec, null);
+    await presenceLog("ck=" + clickKey.slice(0, 8) + "…", rec, null);
     return res.status(200).json(Object.assign({ ok: true, source: "quinstreet-datapass" }, rec, { ok: true }));
   }
 
@@ -204,7 +206,9 @@ module.exports = async (req, res) => {
   if (MOCK) {
     console.log("prefill: mock for " + token);
     try {
-      return res.status(200).json(mapPrefill(MOCK_RESPONSE));
+      const mockMapped = mapPrefill(MOCK_RESPONSE);
+      await presenceLog("MOCK", mockMapped, MOCK_RESPONSE);
+      return res.status(200).json(mockMapped);
     } catch (e) {
       return res.status(200).json({ ok: false, error: "mock map failed" });
     }
@@ -231,7 +235,7 @@ module.exports = async (req, res) => {
     if (!json.DataPassData) return res.status(200).json({ ok: false, error: "no data" });
 
     const mapped = mapPrefill(json);
-    presenceLog("pf=" + token.slice(0, 8) + "…", mapped, json);
+    await presenceLog("pf=" + token.slice(0, 8) + "…", mapped, json);
     return res.status(200).json(mapped);
   } catch (e) {
     const why = e && e.name === "TimeoutError" ? "timeout" : "fetch failed";

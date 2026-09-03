@@ -192,9 +192,29 @@ async function datapassGet(clickKey) {
   try { return JSON.parse(r); } catch (_) { return null; }
 }
 
+// Rolling diagnostic log (Upstash list, newest first, capped at 50).
+// `vercel logs` only streams 5 minutes from now, so console.log alone cannot answer
+// "did QuinStreet send DOB last Tuesday". This keeps a small queryable ring buffer.
+// Field NAMES only — never values, so nothing identifiable is stored.
+const DIAG_KEY = "qs:diag:prefill";
+async function diagPush(line) {
+  if (!REDIS_URL || !REDIS_TOKEN || !line) return false;
+  try {
+    await redis(["LPUSH", DIAG_KEY, new Date().toISOString() + " " + String(line).slice(0, 500)]);
+    await redis(["LTRIM", DIAG_KEY, "0", "49"]);
+    return true;
+  } catch (_) { return false; }
+}
+async function diagList(n) {
+  const r = await redis(["LRANGE", DIAG_KEY, "0", String((n || 25) - 1)]);
+  return Array.isArray(r) ? r : [];
+}
+
 const datapassEnabled = () => Boolean(REDIS_URL && REDIS_TOKEN);
 
 module.exports = {
+  diagPush,
+  diagList,
   datapassPut,
   datapassGet,
   datapassEnabled,

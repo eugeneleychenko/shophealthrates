@@ -263,6 +263,26 @@ Josh finished both halves. Verified live: `token`, `click_key`, `sub_id`, `gende
 
 **`QS_CONVERSION_URL` flipped to production** (`https://www.nextinsure.com/listingdisplay/handlers/conversion.ashx`), set in Vercel and deployed; prod endpoint returns **HTTP 201** with our tenant id. Quote and sale conversions now report to live QMP. Prompted by Misha hand-posting two sales into Slack for Lindsy to map manually — the automation was firing into staging the whole time.
 
+
+## Prefill diagnostics — "is QuinStreet actually sending DOB / household size?"
+
+`vercel logs` only streams 5 minutes forward, so console logging alone could never answer this. `/api/prefill` now records a **field-presence line** (names only, never values) into an Upstash ring buffer (`qs:diag:prefill`, newest first, capped at 50).
+
+**Read it:**
+```bash
+curl -s -H "X-Datapass-Token: $QS_DATAPASS_TOKEN" \
+  "https://shophealthrates.com/api/qs-datapass?diag=1" | python3 -m json.tool
+```
+The Upstash credentials come from the Vercel Marketplace integration and are **injected at runtime only** — `vercel env pull` returns them empty — so this authed GET is the only way to read the buffer from outside.
+
+Example (verified 2026-09-03 with a deliberately incomplete record):
+```
+ck=diagtest… have=[first,last,email,phone,address,zip,income] missing=[dob,gender,householdSize]
+```
+For the pull path the line also carries `rawContact=[…] individuals=N rawSelf=[…]`, which distinguishes *"QuinStreet omitted the field"* from *"we mapped it wrong"*.
+
+**Where the two fields come from** (per QuinStreet's own schema): `HouseHoldSize` sits on `Contact`, `BirthDate` on the `Individuals[]` entry whose `RelationToApplicant` is `Self`. Our mapper reads exactly those. Note the spec's *own example response omits `HouseHoldSize` entirely*, which is circumstantial evidence QuinStreet may not populate it.
+
 ## Env vars
 
 | Var | Default | Purpose |

@@ -70,11 +70,21 @@ module.exports = async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("Content-Type", "application/json");
   if (req.method === "OPTIONS") return res.status(200).end();
-  if (req.method !== "POST") return res.status(405).json({ status: "error", message: "POST only" });
 
   if (!SECRET) return res.status(503).json({ status: "error", message: "datapass not configured" });
   const auth = str(req.headers["x-datapass-token"]) || str(req.headers["authorization"]).replace(/^Bearer\s+/i, "");
   if (auth !== SECRET) return res.status(401).json({ status: "error", message: "unauthorized" });
+
+  // Authed read of the prefill field-presence ring buffer. The Upstash creds are
+  // injected by the Vercel integration at runtime and are NOT retrievable with
+  // `vercel env pull`, so this endpoint is the only way to read the diagnostics
+  // from outside. Field names only — no consumer data is exposed.
+  if (req.method === "GET") {
+    const rows = await qs.diagList(50);
+    return res.status(200).json({ status: "success", count: rows.length, entries: rows });
+  }
+
+  if (req.method !== "POST") return res.status(405).json({ status: "error", message: "POST or GET" });
 
   let body = req.body;
   try { if (typeof body === "string") body = JSON.parse(body); } catch (_) { body = null; }
