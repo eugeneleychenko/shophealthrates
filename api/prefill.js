@@ -113,6 +113,29 @@ function selfIndividual(list) {
 }
 
 // Upstream JSON → our flat contract. Never throws.
+// Field-presence diagnostic. Logs WHICH fields QuinStreet supplied — names only,
+// never values, so nothing identifiable reaches the logs. Added 2026-09-01 to settle
+// "DOB and household size are not coming over": tells us whether the gap is upstream
+// (QuinStreet did not send it) or ours (we mapped it wrong).
+function presenceLog(tag, mapped, json) {
+  try {
+    const keys = ["first","last","email","phone","address","zip","dob","gender","householdSize","income"];
+    const have = keys.filter(function (k) { return mapped && mapped[k]; });
+    const missing = keys.filter(function (k) { return !mapped || !mapped[k]; });
+    // Also record the raw containers so we can tell "field absent" from "field empty".
+    let raw = "";
+    if (json) {
+      const c = (json.DataPassData && json.DataPassData.Contact) || {};
+      const inds = (json.DataPassData && json.DataPassData.Individuals) || [];
+      const self = inds[0] || {};
+      raw = " rawContact=[" + Object.keys(c).join(",") + "]"
+          + " individuals=" + inds.length
+          + " rawSelf=[" + Object.keys(self).join(",") + "]";
+    }
+    console.log("prefill-fields " + tag + " have=[" + have.join(",") + "] missing=[" + missing.join(",") + "]" + raw);
+  } catch (_) {}
+}
+
 function mapPrefill(json) {
   const data = (json && json.DataPassData) || {};
   const c = data.Contact || {};
@@ -169,6 +192,7 @@ module.exports = async (req, res) => {
     const rec = await qs.datapassGet(clickKey);
     console.log("prefill: datapass " + (rec ? "hit" : "miss") + " for ck " + clickKey.slice(0, 8) + "…");
     if (!rec) return res.status(200).json({ ok: false, error: "no datapass record" });
+    presenceLog("ck=" + clickKey.slice(0, 8) + "…", rec, null);
     return res.status(200).json(Object.assign({ ok: true, source: "quinstreet-datapass" }, rec, { ok: true }));
   }
 
@@ -206,7 +230,9 @@ module.exports = async (req, res) => {
     }
     if (!json.DataPassData) return res.status(200).json({ ok: false, error: "no data" });
 
-    return res.status(200).json(mapPrefill(json));
+    const mapped = mapPrefill(json);
+    presenceLog("pf=" + token.slice(0, 8) + "…", mapped, json);
+    return res.status(200).json(mapped);
   } catch (e) {
     const why = e && e.name === "TimeoutError" ? "timeout" : "fetch failed";
     console.log("prefill: " + token + " " + why);
