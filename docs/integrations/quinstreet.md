@@ -283,6 +283,32 @@ For the pull path the line also carries `rawContact=[…] individuals=N rawSelf=
 
 **Where the two fields come from** (per QuinStreet's own schema): `HouseHoldSize` sits on `Contact`, `BirthDate` on the `Individuals[]` entry whose `RelationToApplicant` is `Self`. Our mapper reads exactly those. Note the spec's *own example response omits `HouseHoldSize` entirely*, which is circumstantial evidence QuinStreet may not populate it.
 
+
+## ANSWERED 2026-09-03 — what QuinStreet actually sends in prefill
+
+Tested two **real** tokens from live leads (Misha posted them in Slack). Both returned `Status: success` with data, so this is not a plumbing failure — it is what QuinStreet has.
+
+```
+Contact:     Address:"" Address2:"" City:"Tonto Basin" County:"Gila" State:"Arizona"
+             StateCode:"AZ" ZipCode:"85553" FirstName:"" LastName:"" Email:""
+             HomePhone:"" WorkPhone:"" HouseholdIncome:60000 HouseholdSize:2
+Individuals: [{ BirthDate:"" Gender:"Male" FirstName:"" LastName:"" RelationToApplicant:"Self" }]
+```
+
+| Field | Sent? | Notes |
+|---|---|---|
+| **DOB** | ❌ **`BirthDate` is an empty string** | Confirmed on both tokens. This is the reported symptom, and it is **upstream** — nothing to fix on our side. |
+| **Household size** | ✅ **arrives fine** (`2` and `1`) | The report was half right: household size *is* passing. |
+| Income | ✅ | 60000 / 35000 |
+| Gender, City/State/Zip | ✅ | |
+| First, Last, Email, Phone, street Address | ❌ all empty | QuinStreet is sending **almost no PII** — the consumer types name, phone, email, street and DOB themselves. |
+
+**Key-name trap:** the spec doc says `HouseHoldSize` (capital H in "Hold"); the live payload uses **`HouseholdSize`**. Our mapper reads `c.HouseHoldSize || c.HouseholdSize`, so it works — do not "tidy" that to one spelling.
+
+**Known UX consequence:** the form heading flips to "Confirm Your Details" once ≥3 fields prefill. Address + household + income alone trip that, so a consumer is told to *confirm* a form where their name, phone, email and DOB are all still blank. Consider gating the heading on the identity fields instead.
+
+**Ask for Lindsy:** why are `BirthDate`, `FirstName`, `LastName`, `Email` and `HomePhone` empty for these publishers, and can they be populated? She flagged on the 8/20 call that "a couple of publishers don't store all of that information," so this may be publisher-specific rather than universal.
+
 ## Env vars
 
 | Var | Default | Purpose |
